@@ -295,9 +295,9 @@ const ProfessionalPortal = ({ profile, onLogout }) => {
 
       {/* Modal / Tela de Prontuário VIP */}
       {selectedAppointment && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-slate-50 animate-in slide-in-from-bottom duration-300">
+        <div className="fixed inset-0 h-[100dvh] z-50 flex flex-col bg-slate-50 animate-in slide-in-from-bottom duration-300 overflow-hidden">
           <header 
-            style={{ paddingTop: 'var(--safe-top)' }}
+            style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
             className="bg-white border-b border-slate-100 p-5 flex items-center justify-between sticky top-0 z-10 shrink-0"
           >
              <div className="flex items-center gap-4">
@@ -327,7 +327,7 @@ const ProfessionalPortal = ({ profile, onLogout }) => {
            </header>
 
            <div 
-             style={{ paddingBottom: 'calc(2rem + var(--safe-bottom))' }}
+             style={{ paddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 0px))' }}
              className="flex-1 overflow-y-auto p-6 space-y-8"
            >
               {/* Botões de Ação de Status */}

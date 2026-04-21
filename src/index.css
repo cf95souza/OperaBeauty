@@ -47,10 +47,11 @@
 
 body {
   @apply bg-secondary text-primary antialiased min-h-screen selection:bg-accent/10 selection:text-accent;
-  /* Garante que o corpo do app ocupe 100% da viewport real */
-  height: 100vh;
+  /* Garante que o corpo do app ocupe 100% da viewport real dinâmica */
+  height: 100dvh;
   margin: 0;
   padding: 0;
+  overflow: hidden; /* Evita scroll duplo no body */
 }
 
 h1, h2, h3, h4, h5, h6 {

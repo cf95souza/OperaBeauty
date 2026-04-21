@@ -20,7 +20,7 @@ const ProfessionalSidebar = ({ profile, onLogout, onClose }) => {
   return (
     <div className="h-full w-full bg-white flex flex-col overflow-hidden">
       <div 
-        style={{ paddingTop: 'var(--safe-top)' }}
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0"
       >
         <div className="flex items-center gap-3">
@@ -59,7 +59,7 @@ const ProfessionalSidebar = ({ profile, onLogout, onClose }) => {
       </nav>
 
       <div 
-        style={{ paddingBottom: 'var(--safe-bottom)' }}
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         className="p-6 border-t border-slate-100 shrink-0"
       >
         <button 

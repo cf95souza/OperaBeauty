@@ -46,7 +46,7 @@ const Layout = ({ children, user, profile, branding, onLogout }) => {
   const filteredNav = navItems.filter(item => !item.adminOnly || (profile?.role === 'admin'));
 
   return (
-    <div className="flex h-screen bg-secondary overflow-hidden">
+    <div className="flex h-[100dvh] bg-secondary overflow-hidden">
       {/* Sidebar Desktop */}
       <aside className={`bg-white border-r border-slate-200 hidden md:flex flex-col ${isProfessional ? 'w-72' : 'w-64'}`}>
         {isProfessional ? (
@@ -92,9 +92,9 @@ const Layout = ({ children, user, profile, branding, onLogout }) => {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto flex flex-col">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <header 
-          style={{ paddingTop: 'var(--safe-top)', height: 'calc(4rem + var(--safe-top))' }}
+          style={{ paddingTop: 'env(safe-area-inset-top, 0px)', height: 'calc(4rem + env(safe-area-inset-top, 0px))' }}
           className="bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 sticky top-0 z-10 shrink-0 transition-all"
         >
           <div className="flex items-center gap-4 flex-1 max-w-xl">
@@ -192,7 +192,7 @@ const Layout = ({ children, user, profile, branding, onLogout }) => {
         )}
 
         <div 
-          style={{ paddingBottom: 'calc(2rem + var(--safe-bottom))' }}
+          style={{ paddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 0px))' }}
           className={`flex-1 overflow-y-auto ${isProfessional ? 'p-4 md:p-8' : 'p-6 md:p-8'} max-w-[1400px] mx-auto w-full`}
         >
           {children || <Outlet />}
