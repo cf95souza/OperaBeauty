@@ -19,7 +19,10 @@ const ProfessionalSidebar = ({ profile, onLogout, onClose }) => {
 
   return (
     <div className="h-full w-full bg-white flex flex-col overflow-hidden">
-      <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
+      <div 
+        style={{ paddingTop: 'var(--safe-top)' }}
+        className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0"
+      >
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-slate-900 text-white rounded-lg flex items-center justify-center font-black text-sm">
             {profile?.full_name?.[0]}
@@ -55,7 +58,10 @@ const ProfessionalSidebar = ({ profile, onLogout, onClose }) => {
         ))}
       </nav>
 
-      <div className="p-6 border-t border-slate-100 shrink-0">
+      <div 
+        style={{ paddingBottom: 'var(--safe-bottom)' }}
+        className="p-6 border-t border-slate-100 shrink-0"
+      >
         <button 
           onClick={onLogout}
           className="flex items-center gap-3 w-full px-4 py-3.5 text-rose-500 bg-rose-50 rounded-2xl font-black text-[11px] uppercase tracking-widest active:scale-95 transition-all"

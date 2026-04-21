@@ -131,5 +131,20 @@ Este arquivo rastreia o progresso do desenvolvimento do sistema de gestão do sa
 - [x] **Padronização de Nomes**: Implementação de caixa alta (UPPERCASE) em todos os nomes de clientes no Portal do Profissional, Agenda, CRM e Modais. (Concluído)
 - [x] **Destaque de Bloqueios**: Implementação visual de dias bloqueados na Agenda Mestre com padrão de listras (stripes) e badge de "BLOQUEADO". (Concluído)
 
+## Fase 19: Modernização de UI e Experiência Mobile PWA [CONCLUÍDA] ✅
+- [x] **Sistema de Notificações Premium**: Substituição dos alertas nativos por Toasts e Modais elegantes (Glassmorphism). (Concluído)
+- [x] **PWA Dinâmico**: Transformação do sistema em aplicativo instalável com Nome e Ícone automáticos por salão. (Concluído)
+- [x] **Auto-Update Proativo**: Configuração de atualização automática em tempo real para dispositivos que já instalaram o PWA. (Concluído)
+- [x] **Persistência de Sessão (Mobile Fix)**: Correção do erro que deslogava o profissional ao atualizar a página no celular. (Concluído)
+- [x] **Sincronização de Agenda UTC**: Normalização de datas para garantir visibilidade total da agenda no Portal do Profissional. (Concluído)
+- [x] **Estabilização de Build**: Resolução de conflitos de dependências no servidor de produção (Vite 8 vs PWA). (Concluído)
+
+## Fase 20: Experiência Mobile Avançada e PWA (iOS Fix) ✅
+- [x] **Suporte a Safe Areas**: Implementação de `viewport-fit=cover` e variáveis CSS para suporte ao notch do iPhone. (Concluído)
+- [x] **Ajuste de Headers**: Compensação de altura e padding nos headers globais e modais para evitar sobreposição da status bar. (Concluído)
+- [x] **Correção de Visibilidade**: Garantia de que botões de ação (ex: Iniciar Atendimento) não sejam cortados em dispositivos com indicadores inferiores. (Concluído)
+- [x] **Estabilização de Scroll**: Revisão dos containers de scroll para evitar travamentos em PWAs instalados. (Concluído)
+
 ## Planejamento Final - Avaliação e Refino
-- Aguardando os direcionamentos do Caio.
+- Aguardando homologação do Caio após o push para Git.
+

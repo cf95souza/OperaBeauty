@@ -296,7 +296,10 @@ const ProfessionalPortal = ({ profile, onLogout }) => {
       {/* Modal / Tela de Prontuário VIP */}
       {selectedAppointment && (
         <div className="fixed inset-0 z-50 flex flex-col bg-slate-50 animate-in slide-in-from-bottom duration-300">
-          <header className="bg-white border-b border-slate-100 p-5 flex items-center justify-between sticky top-0 z-10 shrink-0">
+          <header 
+            style={{ paddingTop: 'var(--safe-top)' }}
+            className="bg-white border-b border-slate-100 p-5 flex items-center justify-between sticky top-0 z-10 shrink-0"
+          >
              <div className="flex items-center gap-4">
                 <button onClick={() => setSelectedAppointment(null)} className="w-10 h-10 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 bg-white shadow-sm active:scale-95"><ChevronLeft size={20} /></button>
                 <div>
@@ -323,7 +326,10 @@ const ProfessionalPortal = ({ profile, onLogout }) => {
               </button>
            </header>
 
-           <div className="flex-1 overflow-y-auto p-6 space-y-8">
+           <div 
+             style={{ paddingBottom: 'calc(2rem + var(--safe-bottom))' }}
+             className="flex-1 overflow-y-auto p-6 space-y-8"
+           >
               {/* Botões de Ação de Status */}
               <div className="flex gap-3">
               {selectedAppointment.status === 'scheduled' && (
