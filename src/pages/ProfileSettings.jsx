@@ -119,7 +119,7 @@ const ProfileSettings = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="max-w-[672px] mx-auto space-y-8 animate-in fade-in duration-500">
       <header>
         <h2 className="text-3xl font-serif text-slate-900 tracking-tight">Minha Conta</h2>
         <p className="text-slate-500 mt-1 italic">Personalize sua identidade e segurança na plataforma.</p>
@@ -235,3 +235,4 @@ const ProfileSettings = () => {
 };
 
 export default ProfileSettings;
+

@@ -144,7 +144,7 @@ const Clients = () => {
 
       <div className="card-base flex flex-col">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-4">
-          <div className="relative flex-1 max-w-sm">
+          <div className="relative flex-1 max-w-[384px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
             <input 
               type="text" 
@@ -315,7 +315,7 @@ const Clients = () => {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-lg shadow-card w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-lg shadow-card w-full max-w-[448px] overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-slate-900">
                 {editingClient ? 'Editar Cliente' : 'Novo(a) Cliente'}
@@ -369,3 +369,4 @@ const Clients = () => {
 };
 
 export default Clients;
+

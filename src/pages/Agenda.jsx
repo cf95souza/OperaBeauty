@@ -32,7 +32,7 @@ const Agenda = () => {
   const [appointmentNotes, setAppointmentNotes] = useState([]);
   const [pastAppointments, setPastAppointments] = useState([]);
   const [loadingNotes, setLoadingNotes] = useState(false);
-  const [blockedDates, setBlockedDates] = useState([]);
+  const [exceptions, setExceptions] = useState([]);
 
   const handleOpenDetailModal = async (app) => {
     setSelectedAppointmentDetail(app);
@@ -90,18 +90,18 @@ const Agenda = () => {
       .gte('start_time', start.toISOString())
       .lte('start_time', end.toISOString());
 
-    // Busca Bloqueios do Mês
-    const { data: blockedData } = await supabase
-      .from('cap_blocked_dates')
+    // Busca Exceções do Mês
+    const { data: exceptionData } = await supabase
+      .from('cap_date_exceptions')
       .select('*')
-      .gte('blocked_date', format(start, 'yyyy-MM-dd'))
-      .lte('blocked_date', format(end, 'yyyy-MM-dd'));
+      .gte('exception_date', format(start, 'yyyy-MM-dd'))
+      .lte('exception_date', format(end, 'yyyy-MM-dd'));
 
     if (error) {
       console.error('Erro ao buscar agendamentos:', error);
     } else {
       setAppointments(data || []);
-      setBlockedDates(blockedData || []);
+      setExceptions(exceptionData || []);
     }
     setLoading(false);
   };
@@ -173,8 +173,9 @@ const Agenda = () => {
         const isSelected = isSameDay(day, selectedDate);
         const isCurrentMonth = isSameDay(startOfMonth(day), monthStart);
         
-        // Verifica se o dia está bloqueado
-        const isBlocked = blockedDates.some(b => b.blocked_date === format(cloneDay, 'yyyy-MM-dd'));
+        // Verifica se o dia está bloqueado (exceção is_closed = true)
+        const dayException = exceptions.find(e => e.exception_date === format(cloneDay, 'yyyy-MM-dd'));
+        const isBlocked = dayException ? dayException.is_closed : false;
 
         days.push(
           <div
@@ -262,7 +263,7 @@ const Agenda = () => {
       {showDayDetail && (
         <div className="fixed inset-0 z-50 flex justify-end animate-in fade-in duration-300">
             <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowDayDetail(false)} />
-            <div className="relative w-full max-w-md bg-slate-50 h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-500">
+            <div className="relative w-full max-w-[448px] bg-slate-50 h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-500">
                <div className="p-8 bg-white border-b border-slate-100 flex items-center justify-between">
                   <div>
                      <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase">{format(selectedDate, 'EEEE', { locale: ptBR })}</h2>
@@ -406,7 +407,7 @@ const Agenda = () => {
       {selectedAppointmentDetail && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedAppointmentDetail(null)} />
-           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden relative z-10 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[512px] overflow-hidden relative z-10 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
               
               <div className="bg-slate-900 border-b border-slate-800 p-6 flex items-center justify-between">
                  <div>
@@ -561,3 +562,4 @@ const Agenda = () => {
 };
 
 export default Agenda;
+

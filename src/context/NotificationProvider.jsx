@@ -71,7 +71,7 @@ export const NotificationProvider = ({ children }) => {
       {confirmState && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" onClick={() => confirmState.resolve(false)} />
-          <div className="relative bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-300">
+          <div className="relative bg-white w-full max-w-[384px] rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-300">
             <div className="p-8 text-center space-y-4">
               <div className="w-16 h-16 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <Crown className="text-accent w-8 h-8 opacity-20 absolute" />
@@ -106,3 +106,4 @@ export const NotificationProvider = ({ children }) => {
     </NotificationContext.Provider>
   );
 };
+

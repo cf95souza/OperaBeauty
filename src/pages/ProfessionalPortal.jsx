@@ -201,7 +201,7 @@ const ProfessionalPortal = ({ profile, onLogout }) => {
   };
 
   return (
-    <div className="max-w-lg mx-auto pb-24">
+    <div className="max-w-[512px] mx-auto pb-24">
       <main className="w-full">
         {/* Carrossel de Datas */}
         <div className="bg-white border-b border-slate-100 py-4 px-6 shadow-sm mb-6 sticky top-0 z-30">
@@ -447,3 +447,4 @@ const ProfessionalPortal = ({ profile, onLogout }) => {
 };
 
 export default ProfessionalPortal;
+

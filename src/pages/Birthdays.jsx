@@ -16,7 +16,7 @@ const Birthdays = () => {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // 1-12
-  const [salonName, setSalonName] = useState('Capelli');
+  const [salonName, setSalonName] = useState('OperaBeauty');
   const navigate = useNavigate();
 
   const months = [

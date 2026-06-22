@@ -195,7 +195,7 @@ const Inventory = ({ profile }) => {
 
       <div className="card-base flex flex-col">
         <div className="p-4 border-b border-slate-100 flex items-center gap-4">
-          <div className="relative flex-1 max-w-sm">
+          <div className="relative flex-1 max-w-[384px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
             <input 
               type="text" 
@@ -411,7 +411,7 @@ const Inventory = ({ profile }) => {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-lg shadow-card w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-lg shadow-card w-full max-w-[448px] overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-slate-900">
                 {editingItem ? 'Editar Produto / Insumo' : 'Entrada de Estoque'}
@@ -500,7 +500,7 @@ const Inventory = ({ profile }) => {
       {/* Modal de Reposição Rápida */}
       {replenishModal.show && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-lg shadow-card w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-lg shadow-card w-full max-w-[384px] overflow-hidden animate-in fade-in zoom-in duration-200">
              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <h3 className="text-lg font-bold text-slate-900">Reposição de Estoque</h3>
                 <button onClick={() => setReplenishModal({ show: false, item: null, amount: '' })}><X size={20} className="text-slate-400" /></button>
@@ -538,7 +538,7 @@ const Inventory = ({ profile }) => {
       {/* Alerta de Dependências */}
       {dependencyAlert.show && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200 border border-slate-100">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[448px] overflow-hidden animate-in fade-in zoom-in duration-200 border border-slate-100">
             <div className="p-8 text-center space-y-6">
               <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto ring-8 ring-rose-50/50">
                 <AlertTriangle size={32} />
@@ -569,3 +569,4 @@ const Inventory = ({ profile }) => {
 };
 
 export default Inventory;
+

@@ -15,8 +15,8 @@ export default defineConfig({
         clientsClaim: true
       },
       manifest: {
-        name: 'Capelli',
-        short_name: 'Capelli',
+        name: 'OperaBeauty',
+        short_name: 'OperaBeauty',
         description: 'Sistema de Gestão para Salões de Beleza e Barbearias',
         theme_color: '#be185d',
         icons: [

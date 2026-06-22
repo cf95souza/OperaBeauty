@@ -81,10 +81,20 @@ const NewAppointmentModal = ({ isOpen, onClose, initialDate, editAppointment, on
 
     try {
       const formattedDate = format(date, 'yyyy-MM-dd');
-      const { data: blocked } = await supabase.from('cap_blocked_dates').select('*').eq('blocked_date', formattedDate).maybeSingle();
-      const { data: hours } = await supabase.from('cap_business_hours').select('*').eq('day_of_week', date.getDay()).maybeSingle();
+      const { data: exception } = await supabase.from('cap_date_exceptions').select('*').eq('exception_date', formattedDate).maybeSingle();
+      const { data: defaultHours } = await supabase.from('cap_business_hours').select('*').eq('day_of_week', date.getDay()).maybeSingle();
 
-      if (blocked || !hours || hours.is_closed) {
+      let hours = null;
+      if (exception) {
+        if (exception.is_closed) {
+          setAvailableSlots([]);
+          setLoading(false);
+          return;
+        }
+        hours = { open_time: exception.open_time, close_time: exception.close_time };
+      } else if (defaultHours && !defaultHours.is_closed) {
+        hours = defaultHours;
+      } else {
         setAvailableSlots([]);
         setLoading(false);
         return;
@@ -219,7 +229,7 @@ const NewAppointmentModal = ({ isOpen, onClose, initialDate, editAppointment, on
 
   const sendWhatsApp = () => {
     const list = successState.services.map(s => s.name).join(', ');
-    const msg = `Olá! 👑 Agendamento confirmado no Capelli:\n\n📅 Data: ${format(successState.time, 'dd/MM/yyyy')}\n⏰ Hora: ${format(successState.time, 'HH:mm')}\n✨ Procedimentos: ${list}\n💰 Total: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(successState.totalPrice)}`;
+    const msg = `Olá! 👑 Agendamento confirmado no OperaBeauty:\n\n📅 Data: ${format(successState.time, 'dd/MM/yyyy')}\n⏰ Hora: ${format(successState.time, 'HH:mm')}\n✨ Procedimentos: ${list}\n💰 Total: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(successState.totalPrice)}`;
     window.open(`https://wa.me/55${successState.client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
@@ -227,7 +237,7 @@ const NewAppointmentModal = ({ isOpen, onClose, initialDate, editAppointment, on
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 text-left">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col h-[650px] animate-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[672px] overflow-hidden flex flex-col h-[650px] animate-in zoom-in-95 duration-200">
         <div className="p-6 border-b border-slate-100 flex items-center justify-between">
            <div className="flex items-center gap-3">
               <div className="p-2 bg-accent/10 text-accent rounded-lg"><Calendar size={20} /></div>
@@ -331,3 +341,4 @@ const NewAppointmentModal = ({ isOpen, onClose, initialDate, editAppointment, on
 };
 
 export default NewAppointmentModal;
+

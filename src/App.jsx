@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useParams } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 
-// --- Components ---
+// --- Context ---
+import { NotificationProvider } from './context/NotificationProvider';
+import { Crown } from 'lucide-react';
+
+// --- Páginas (Ainda mantendo as antigas temporariamente para não quebrar o build) ---
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Clients from './pages/Clients';
@@ -17,455 +21,141 @@ import PublicBooking from './pages/PublicBooking';
 import Maintenance from './pages/Maintenance';
 import ProfileSettings from './pages/ProfileSettings';
 import ProfessionalPortal from './pages/ProfessionalPortal';
-import { Clock, Bell, ShieldOff, AlertCircle, Loader2, Crown } from 'lucide-react';
-import { NotificationProvider } from './context/NotificationProvider';
 
-// --- Protected Route Wrapper ---
-const ProtectedRoute = ({ children, allowedRoles, profile, session, initializing }) => {
-  if (initializing) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#fdfcfb]">
-        <div className="relative">
-          <div className="w-16 h-16 border-4 border-slate-100 border-t-accent rounded-full animate-spin"></div>
-          <Crown className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-accent/20 w-6 h-6" />
-        </div>
-        <p className="mt-6 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] animate-pulse">Sincronizando Acesso...</p>
-      </div>
-    );
-  }
-  if (!session) return <Navigate to="/login" replace />;
-  if (allowedRoles && profile && !allowedRoles.includes(profile.role)) {
-    return <Navigate to={profile.role === 'professional' ? '/portal' : '/'} replace />;
+// --- Páginas Novas do Design System ---
+import AcessoProfissional from './pages/AcessoProfissional';
+import AcessoTelefone from './pages/AcessoTelefone';
+import AcessoSenha from './pages/AcessoSenha';
+import CadastroCliente from './pages/CadastroCliente';
+import AgendamentoServicos from './pages/AgendamentoServicos';
+import AgendamentoProfissionais from './pages/AgendamentoProfissionais';
+import AgendamentoHorarios from './pages/AgendamentoHorarios';
+import AgendamentoRevisao from './pages/AgendamentoRevisao';
+import AgendamentoConfirmado from './pages/AgendamentoConfirmado';
+import HistoricoAgendamentos from './pages/HistoricoAgendamentos';
+import HomeCliente from './pages/HomeCliente';
+import PerfilCliente from './pages/PerfilCliente';
+import AgendaProfissional from './pages/AgendaProfissional';
+import FichaClienteCRM from './pages/FichaClienteCRM';
+import ResumoAgendamento from './pages/ResumoAgendamento';
+import { BookingProvider } from './context/BookingContext';
+import AdminLayout from './components/admin/AdminLayout';
+import LandingPage from './pages/LandingPage';
+
+// --- Contexto Multi-Tenant ---
+import { TenantProvider, useTenant } from './context/TenantContext';
+// --- Wrapper para Proteger as Rotas do Salão ---
+const TenantWrapper = () => {
+  return (
+    <TenantProvider>
+      <BookingProvider>
+        <Outlet />
+      </BookingProvider>
+    </TenantProvider>
+  );
+};
+
+// --- Rota Protegida Antiga (Será refatorada na Fase 23+) ---
+const ProtectedRoute = ({ children, allowedRoles }) => {
+  const { session, loading } = useTenant();
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center">Sincronizando...</div>;
+  if (!session) return <Navigate to="login" replace />; 
+
+  if (allowedRoles && session.role && !allowedRoles.includes(session.role)) {
+    return <Navigate to={session.role === 'professional' ? 'portal' : ''} replace />;
   }
   return children || <Outlet />;
 };
 
-// --- Login Page ---
-const Login = ({ setProfile, setSession, branding }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    // 1. Tentar Login Oficial (Supabase Auth)
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
-    
-    if (authError) {
-      // 2. Tentar Login Interno (Nossa Tabela)
-      const { data: internalData, error: internalError } = await supabase.rpc('cap_verify_login', {
-        p_email: email,
-        p_password: password
-      });
-
-      if (internalError || !internalData || internalData.length === 0) {
-        alert('Falha no login: Credenciais inválidas ou conta inativa.');
-      } else {
-        // Login Interno Sucesso
-        const user = internalData[0];
-        const sessionData = { ...user, access_email: email };
-        localStorage.setItem('cap_internal_session', JSON.stringify(sessionData));
-        
-        // Atualiza estados para disparar o redirecionamento reativo
-        setProfile(user);
-        setSession({ user: { id: user.user_id, email: email }, isInternal: true });
-      }
-    }
-    setLoading(false);
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-[#fdfcfb] p-6 lg:p-0">
-      <div className="w-full max-w-md space-y-12 animate-in fade-in duration-1000">
-        <div className="text-center space-y-4">
-          <h1 className="text-5xl font-serif text-slate-900 tracking-tight">{branding?.salonName || 'Capelli'}</h1>
-          <p className="text-slate-500 uppercase tracking-widest text-[10px] font-bold">Acesso ao Sistema • Bem-vindo(a)</p>
-        </div>
-        
-        <form onSubmit={handleLogin} className="space-y-6">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Seu E-mail</label>
-            <input 
-              type="email" 
-              required
-              className="input-base"
-              placeholder="exemplo@gmail.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Senha de Acesso</label>
-            <input 
-              type="password" 
-              required
-              className="input-base"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="btn-accent w-full py-4 text-sm font-bold shadow-xl shadow-accent/20"
-          >
-            {loading ? 'Validando Acesso...' : 'Entrar no Sistema'}
-          </button>
-        </form>
-
-        <div className="pt-8 border-t border-slate-50 text-center">
-          <p className="text-slate-400 text-[10px] font-medium uppercase tracking-widest">
-            Acesso Restrito à Equipe {branding?.salonName || 'Capelli'}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const AccountDisabled = ({ onLogout }) => (
-  <div className="min-h-screen flex items-center justify-center bg-[#fdfcfb] p-6">
-    <div className="max-w-md w-full bg-white rounded-[2rem] p-10 shadow-2xl shadow-accent/10 border border-slate-50 text-center space-y-8 animate-in zoom-in-95 duration-700">
-      <div className="w-24 h-24 bg-accent/5 rounded-full flex items-center justify-center mx-auto relative overflow-hidden">
-        <ShieldOff className="text-accent animate-pulse" size={48} />
-      </div>
-      
-      <div className="space-y-3">
-        <h2 className="text-3xl font-serif text-slate-900 tracking-tight">Acesso Suspenso</h2>
-        <p className="text-slate-500 text-sm leading-relaxed">
-          Olá. Notamos que sua conta não está ativa no momento. Entre em contato com o gestor do salão para reabilitar seu acesso ao sistema.
-        </p>
-      </div>
-
-      <div className="p-4 bg-accent/5 rounded-2xl text-accent text-[11px] font-bold uppercase tracking-wider flex items-center justify-center gap-2">
-        <AlertCircle size={14} /> Segurança Capelli
-      </div>
-
-      <button 
-        onClick={onLogout}
-        className="text-stone-400 text-xs font-bold hover:text-rose-500 transition-colors uppercase tracking-widest"
-      >
-        Sair / Tentar outro acesso
-      </button>
-    </div>
-  </div>
-);
+// --- Componente Principal ---
+import DashboardAdmin from './pages/admin/DashboardAdmin';
+import GestaoFinanceira from './pages/admin/GestaoFinanceira';
+import GestaoEquipe from './pages/admin/GestaoEquipe';
+import GestaoServicos from './pages/admin/GestaoServicos';
+import GestaoClientes from './pages/admin/GestaoClientes';
+import ConfiguracoesOperacionais from './pages/admin/ConfiguracoesOperacionais';
+import BrandingCustomizacao from './pages/admin/BrandingCustomizacao';
+import ControleEstoque from './pages/admin/ControleEstoque';
+import SuperAdmin from './pages/superadmin/SuperAdmin';
+import SuperAdminLogin from './pages/superadmin/SuperAdminLogin';
 
 function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [initializing, setInitializing] = useState(true);
-  const [branding, setBranding] = useState({ salonName: 'Capelli', primaryColor: '#be185d', logoUrl: '' });
+  const [initializing, setInitializing] = useState(false); // Simplificado provisoriamente
+  const [branding, setBranding] = useState({ salonName: 'OperaBeauty', primaryColor: '#7c5357', logoUrl: '' });
 
-  const fetchProfile = async (userId) => {
-    try {
-      const { data, error } = await supabase
-        .from('cap_profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      
-      if (error) throw error;
-      setProfile(data);
-      return data;
-    } catch (err) {
-      console.warn("Retrying profile fetch due to possible lock or missing record...");
-      return null;
-    }
-  };
-
-  const handleLogout = async () => {
-    localStorage.removeItem('cap_internal_session');
-    await supabase.auth.signOut();
-    setSession(null);
-    setProfile(null);
-  };
-
-  useEffect(() => {
-    let mounted = true;
-    let profileSubscription = null;
-    
-    // FAIL-SAFE: Se em 3.5 segundos não carregar, libera a tela por força
-    const fallbackTimer = setTimeout(() => {
-      if (mounted && initializing) {
-        console.warn("Fail-safe: Forçando saída do estado de inicialização.");
-        setInitializing(false);
-      }
-    }, 3500);
-
-    // Unificando a inicialização para evitar NavigatorLockAcquireTimeoutError
-    const initApp = async () => {
-      try {
-        // 1. Verificar Sessão Interna (LocalStorage)
-        const savedSession = localStorage.getItem('cap_internal_session');
-        if (savedSession) {
-          try {
-            const internalUser = JSON.parse(savedSession);
-            if (internalUser && (internalUser.user_id || internalUser.id)) {
-              setProfile(internalUser);
-              setSession({ 
-                user: { id: internalUser.user_id || internalUser.id, email: internalUser.access_email }, 
-                isInternal: true 
-              });
-              setInitializing(false);
-              return;
-            }
-          } catch (e) {
-            console.error("Erro ao decodificar sessão interna:", e);
-            localStorage.removeItem('cap_internal_session');
-          }
-        }
-
-        // 2. Pega a sessão oficial do Supabase
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
-        setSession(initialSession);
-        
-        if (initialSession) {
-          await fetchProfile(initialSession.user.id);
-
-          // ESCUTANDO MUDANÇAS EM TEMPO REAL NO PERFIL (Apenas para Oficiais)
-          profileSubscription = supabase
-            .channel(`profile-${initialSession.user.id}`)
-            .on('postgres_changes', { 
-              event: 'UPDATE', 
-              schema: 'public', 
-              table: 'cap_profiles', 
-              filter: `id=eq.${initialSession.user.id}` 
-            }, (payload) => {
-              if (mounted) {
-                console.log("Perfil atualizado em tempo real:", payload.new);
-                setProfile(payload.new);
-              }
-            })
-            .subscribe();
-        }
-      } catch (err) {
-        console.error("Erro na carga inicial:", err);
-      } finally {
-        if (mounted) {
-          setInitializing(false);
-          clearTimeout(fallbackTimer);
-        }
-      }
-    };
-
-    const loadBranding = async () => {
-      const { data } = await supabase.from('cap_settings').select('primary_color, salon_name, logo_url').maybeSingle();
-      if (data) {
-        const salonName = data.salon_name || 'Capelli';
-        const primaryColor = data.primary_color || '#be185d';
-        const logoUrl = data.logo_url || '/pwa-192x192.png';
-
-        setBranding({ salonName, primaryColor, logoUrl: data.logo_url || '' });
-
-        // 1. Título da Aba
-        document.title = salonName;
-
-        // 2. Favicon Dinâmico
-        let favLink = document.querySelector("link[rel~='icon']");
-        if (!favLink) {
-          favLink = document.createElement('link');
-          favLink.rel = 'icon';
-          document.getElementsByTagName('head')[0].appendChild(favLink);
-        }
-        favLink.href = logoUrl;
-
-        // 3. Apple Touch Icon (iOS)
-        let appleIcon = document.querySelector("link[rel='apple-touch-icon']");
-        if (!appleIcon) {
-          appleIcon = document.createElement('link');
-          appleIcon.rel = 'apple-touch-icon';
-          document.getElementsByTagName('head')[0].appendChild(appleIcon);
-        }
-        appleIcon.href = logoUrl;
-
-        // 4. Cor de Tema (Status Bar)
-        let themeMeta = document.querySelector("meta[name='theme-color']");
-        if (!themeMeta) {
-          themeMeta = document.createElement('meta');
-          themeMeta.name = 'theme-color';
-          document.getElementsByTagName('head')[0].appendChild(themeMeta);
-        }
-        themeMeta.content = primaryColor;
-        document.documentElement.style.setProperty('--dynamic-accent', primaryColor);
-
-        // 5. MANIFESTO PWA DINÂMICO
-        const myManifest = {
-          short_name: salonName,
-          name: salonName,
-          start_url: "/",
-          display: "standalone",
-          background_color: "#ffffff",
-          theme_color: primaryColor,
-          icons: [
-            {
-              src: logoUrl,
-              sizes: "192x192",
-              type: "image/png",
-              purpose: "any maskable"
-            },
-            {
-              src: logoUrl,
-              sizes: "512x512",
-              type: "image/png"
-            }
-          ]
-        };
-        const stringManifest = JSON.stringify(myManifest);
-        const blob = new Blob([stringManifest], {type: 'application/json'});
-        const manifestURL = URL.createObjectURL(blob);
-        
-        let manifestLink = document.querySelector("link[rel='manifest']");
-        if (!manifestLink) {
-          manifestLink = document.createElement('link');
-          manifestLink.rel = 'manifest';
-          document.getElementsByTagName('head')[0].appendChild(manifestLink);
-        }
-        manifestLink.setAttribute('href', manifestURL);
-      }
-    };
-
-    initApp();
-    loadBranding();
-
-    // 2. Escuta mudanças oficiais, mas evita limpar a sessão se for um login interno (Professional)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      if (!mounted) return;
-      
-      const hasInternal = !!localStorage.getItem('cap_internal_session');
-
-      if (event === 'SIGNED_OUT') {
-        localStorage.removeItem('cap_internal_session');
-        setSession(null);
-        setProfile(null);
-        return;
-      }
-
-      // IMPORTANTE: Se temos sessão oficial, usamos ela. 
-      // Se não temos sessão oficial MAS temos interna, NÃO limpamos o estado.
-      if (currentSession) {
-        setSession(currentSession);
-        fetchProfile(currentSession.user.id);
-      } else if (!hasInternal) {
-        // Apenas limpa se não houver NENHUMA sessão (nem oficial, nem interna)
-        setSession(null);
-        setProfile(null);
-      }
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-      if (profileSubscription) supabase.removeChannel(profileSubscription);
-      clearTimeout(fallbackTimer);
-    };
-  }, []);
-
-  if (initializing) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#fdfcfb]">
-         <div className="text-center space-y-6 animate-in fade-in duration-700">
-            <h1 className="text-5xl font-serif text-slate-200 tracking-tighter select-none">{branding.salonName}</h1>
-            <div className="relative w-12 h-12 mx-auto">
-              <div className="absolute inset-0 border-4 border-accent/10 rounded-full"></div>
-              <div className="absolute inset-0 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
-            </div>
-            <div className="space-y-1">
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Conectando ao Sistema</p>
-              <p className="text-[9px] text-slate-300 italic">Sincronizando dados...</p>
-            </div>
-         </div>
-      </div>
-    );
-  }
-
-  // LÓGICA DE BLOQUEIO DE SEGURANÇA (Contas Inativas)
-  const isDisabled = session && profile && !profile.is_active;
-  
-  if (isDisabled) {
-    return (
-      <AccountDisabled onLogout={() => supabase.auth.signOut()} />
-    );
-  }
+  // A lógica antiga de Supabase Auth foi temporariamente isolada aqui
+  // pois precisará ser inteiramente refeita para usar a nova tabela `cap_staff` com RPC (Fase 22 concluída, agora aplicar no frontend).
 
   return (
     <NotificationProvider>
       <BrowserRouter>
-      <Routes>
-        {/* redirecionamento de profissional logado na raiz */}
-        <Route 
-          path="/" 
-          element={
-            initializing ? null : 
-            !session ? <Navigate to="/login" replace /> :
-            profile?.role === 'professional' ? <Navigate to="/portal" replace /> :
-            <Navigate to="/dashboard" replace />
-          } 
-        />
-        
-        {/* --- Public Access Area --- */}
-        <Route path="/agendar" element={<PublicBooking branding={branding} />} />
-        <Route path="/login" element={!session ? <Login setSession={setSession} setProfile={setProfile} branding={branding} /> : <Navigate to="/" />} />
-        
-        {/* --- Protected Area (Admin/Profissional) --- */}
-        <Route element={
-          <ProtectedRoute session={session} profile={profile} initializing={initializing}>
-            <Layout user={session?.user} profile={profile} branding={branding} onLogout={handleLogout} />
-          </ProtectedRoute>
-        }>
-          <Route path="/dashboard" element={
-            <ProtectedRoute allowedRoles={['admin']} session={session} profile={profile} initializing={initializing}>
-              <Dashboard profile={profile} />
-            </ProtectedRoute>
-          } />
-          <Route path="/clientes" element={
-            <ProtectedRoute allowedRoles={['admin']} session={session} profile={profile} initializing={initializing}>
-              <Clients />
-            </ProtectedRoute>
-          } />
-          <Route path="/clientes/:id" element={<ClientDetail />} />
-          <Route path="/aniversariantes" element={<Birthdays />} />
-          <Route path="/agenda" element={<Agenda />} />
-          <Route path="/servicos" element={
-            <ProtectedRoute allowedRoles={['admin', 'professional']} session={session} profile={profile} initializing={initializing}>
-              <Services profile={profile} />
-            </ProtectedRoute>
-          } />
-          <Route path="/profissionais" element={
-            <ProtectedRoute allowedRoles={['admin']} session={session} profile={profile} initializing={initializing}>
-              <Employees />
-            </ProtectedRoute>
-          } />
-          <Route path="/estoque" element={
-            <ProtectedRoute allowedRoles={['admin', 'professional']} session={session} profile={profile} initializing={initializing}>
-              <Inventory profile={profile} />
-            </ProtectedRoute>
-          } />
-          <Route path="/manutencao" element={
-            <ProtectedRoute allowedRoles={['admin']} session={session} profile={profile} initializing={initializing}>
-              <Maintenance />
-            </ProtectedRoute>
-          } />
-          <Route path="/configuracoes" element={
-            <ProtectedRoute allowedRoles={['admin']} session={session} profile={profile} initializing={initializing}>
-              <Settings />
-            </ProtectedRoute>
-          } />
-          <Route path="/minha-conta" element={<ProfileSettings />} />
-          <Route path="/portal" element={
-            <ProtectedRoute allowedRoles={['professional', 'admin']} session={session} profile={profile} initializing={initializing}>
-              <ProfessionalPortal profile={profile} onLogout={handleLogout} />
-            </ProtectedRoute>
-          } />
-        </Route>
+        <Routes>
+          {/* Rota Raiz (SaaS Global) */}
+          <Route path="/" element={<LandingPage />} />
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Rotas Super Admin (SaaS Mestre) */}
+          <Route path="/superadmin" element={<SuperAdmin />} />
+          <Route path="/superadmin/login" element={<SuperAdminLogin />} />
+
+          {/* Rotas Multi-Tenant (Todas encapsuladas no slug do salão) */}
+          <Route path="/:tenant_slug" element={<TenantWrapper />}>
+            
+            {/* Rota Raiz do Salão (Redireciona para login ou dashboard) */}
+            <Route index element={<Navigate to="home" replace />} />
+
+            {/* Rotas Públicas do Salão */}
+            <Route path="home" element={<HomeCliente />} />
+            <Route path="agendar" element={<Navigate to="servicos" replace />} />
+            <Route path="agendar/servicos" element={<AgendamentoServicos />} />
+            <Route path="agendar/profissionais" element={<AgendamentoProfissionais />} />
+            <Route path="agendar/horarios" element={<AgendamentoHorarios />} />
+            <Route path="agendar/revisao" element={<AgendamentoRevisao />} />
+            <Route path="agendar/confirmado" element={<AgendamentoConfirmado />} />
+            <Route path="historico" element={<HistoricoAgendamentos />} />
+            <Route path="perfil" element={<PerfilCliente />} />
+            {/* Jornada de Login (Cliente e Staff) */}
+            <Route path="login" element={<AcessoTelefone />} />
+            <Route path="acesso-senha" element={<AcessoSenha />} />
+            <Route path="cadastro" element={<CadastroCliente />} />
+              <Route path="staff/login" element={<AcessoProfissional />} />
+              <Route path="staff/ficha-cliente/:id" element={<FichaClienteCRM />} />
+              <Route element={<AdminLayout />}>
+                <Route path="staff/agendamento/:id" element={<ResumoAgendamento />} />
+                <Route path="staff/agenda-profissional" element={<AgendaProfissional />} />
+                <Route path="staff/admin/dashboard" element={<DashboardAdmin />} />
+                <Route path="staff/admin/financeiro" element={<GestaoFinanceira />} />
+                <Route path="staff/admin/equipe" element={<GestaoEquipe />} />
+                <Route path="staff/admin/clientes" element={<GestaoClientes />} />
+                <Route path="staff/admin/servicos" element={<GestaoServicos />} />
+                <Route path="staff/admin/configuracoes" element={<ConfiguracoesOperacionais />} />
+                <Route path="staff/admin/branding" element={<BrandingCustomizacao />} />
+                <Route path="staff/admin/estoque" element={<ControleEstoque />} />
+              </Route>
+
+            {/* Antigas rotas (mantidas para compatibilidade provisória) */}
+            <Route element={<ProtectedRoute />}>
+               <Route element={<Layout />}>
+                 {/* <Route path="dashboard" element={<Dashboard />} /> */}
+                 <Route path="clientes" element={<Clients />} />
+                 <Route path="clientes/:id" element={<ClientDetail />} />
+                 <Route path="aniversariantes" element={<Birthdays />} />
+                 <Route path="agenda" element={<Agenda />} />
+                 <Route path="servicos" element={<Services profile={profile} />} />
+                 <Route path="profissionais" element={<Employees />} />
+                 <Route path="estoque" element={<Inventory profile={profile} />} />
+                 <Route path="manutencao" element={<Maintenance />} />
+                 <Route path="configuracoes" element={<Settings />} />
+                 <Route path="minha-conta" element={<ProfileSettings />} />
+                 <Route path="portal" element={<ProfessionalPortal profile={profile} onLogout={() => setSession(null)} />} />
+               </Route>
+            </Route>
+          </Route>
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </BrowserRouter>
     </NotificationProvider>
   );

@@ -58,13 +58,13 @@ const ProfessionalRegister = () => {
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#fdfcfb] p-6">
-        <div className="max-w-md w-full bg-white rounded-3xl p-10 shadow-xl shadow-rose-100/50 border border-rose-50 text-center animate-in zoom-in-95 duration-500">
+        <div className="max-w-[448px] w-full bg-white rounded-3xl p-10 shadow-xl shadow-rose-100/50 border border-rose-50 text-center animate-in zoom-in-95 duration-500">
           <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle2 className="text-emerald-500" size={40} />
           </div>
           <h2 className="text-2xl font-serif text-slate-900 mb-4">Cadastro Enviado!</h2>
           <p className="text-slate-500 text-sm leading-relaxed mb-8">
-            Seu perfil foi criado com sucesso. Agora, o gestor do Capelli irá analisar seu cadastro. 
+            Seu perfil foi criado com sucesso. Agora, o gestor do OperaBeauty irá analisar seu cadastro. 
             Você poderá acessar o sistema assim que seu perfil for habilitado.
           </p>
           <Link 
@@ -80,15 +80,15 @@ const ProfessionalRegister = () => {
 
   return (
     <div className="min-h-screen bg-[#fdfcfb] flex flex-col items-center justify-center p-6 lg:p-12">
-      <div className="w-full max-w-lg space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+      <div className="w-full max-w-[512px] space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
         
         <div className="text-center space-y-3">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-rose-50 text-rose-500 rounded-full text-[10px] font-bold uppercase tracking-widest mb-2">
             <Sparkles size={12} />
-            Seja um parceiro Capelli
+            Seja um parceiro OperaBeauty
           </div>
           <h1 className="text-4xl lg:text-5xl font-serif text-slate-900 tracking-tight">Crie seu Perfil</h1>
-          <p className="text-slate-500 text-sm max-w-xs mx-auto">Cadastre-se para gerenciar sua agenda e clientes em nossa plataforma.</p>
+          <p className="text-slate-500 text-sm max-w-[320px] mx-auto">Cadastre-se para gerenciar sua agenda e clientes em nossa plataforma.</p>
         </div>
 
         <div className="bg-white rounded-[2rem] p-8 lg:p-10 shadow-2xl shadow-rose-100/30 border border-slate-50">
@@ -173,3 +173,4 @@ const ProfessionalRegister = () => {
 };
 
 export default ProfessionalRegister;
+

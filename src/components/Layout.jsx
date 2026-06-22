@@ -56,7 +56,7 @@ const Layout = ({ children, user, profile, branding, onLogout }) => {
             <div className="h-16 flex items-center px-6 border-b border-slate-100 mb-6">
               <div className="flex items-center gap-2">
                 <Crown className="text-accent w-5 h-5" />
-                <span className="text-[15px] font-serif font-bold tracking-tight truncate max-w-[180px]">{branding?.salonName || 'Capelli'}</span>
+                <span className="text-[15px] font-serif font-bold tracking-tight truncate max-w-[180px]">{branding?.salonName || 'OperaBeauty'}</span>
               </div>
             </div>
             
@@ -97,7 +97,7 @@ const Layout = ({ children, user, profile, branding, onLogout }) => {
           style={{ paddingTop: 'env(safe-area-inset-top, 0px)', height: 'calc(4rem + env(safe-area-inset-top, 0px))' }}
           className="bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 sticky top-0 z-10 shrink-0 transition-all"
         >
-          <div className="flex items-center gap-4 flex-1 max-w-xl">
+          <div className="flex items-center gap-4 flex-1 max-w-[576px]">
             {/* Mobile Menu Toggle */}
             <button 
               className="md:hidden p-2 text-slate-500 bg-slate-50 rounded-xl"
@@ -161,7 +161,7 @@ const Layout = ({ children, user, profile, branding, onLogout }) => {
                     <div className="h-16 flex items-center justify-between px-6 border-b border-slate-100 shrink-0">
                        <div className="flex items-center gap-2">
                           <Crown className="text-accent w-5 h-5" />
-                          <span className="text-[15px] font-serif font-bold tracking-tight truncate max-w-[180px]">{branding?.salonName || 'Capelli'}</span>
+                          <span className="text-[15px] font-serif font-bold tracking-tight truncate max-w-[180px]">{branding?.salonName || 'OperaBeauty'}</span>
                        </div>
                        <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-slate-400"><CloseIcon size={20} /></button>
                     </div>
@@ -203,3 +203,4 @@ const Layout = ({ children, user, profile, branding, onLogout }) => {
 };
 
 export default Layout;
+

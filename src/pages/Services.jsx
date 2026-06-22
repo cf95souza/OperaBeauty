@@ -171,7 +171,7 @@ const Services = ({ profile }) => {
 
       <div className="card-base flex flex-col">
         <div className="p-4 border-b border-slate-100 flex items-center gap-4">
-          <div className="relative flex-1 max-w-sm">
+          <div className="relative flex-1 max-w-[384px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
             <input 
               type="text" 
@@ -256,7 +256,7 @@ const Services = ({ profile }) => {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-lg shadow-card w-full max-w-lg my-8 animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-lg shadow-card w-full max-w-[512px] my-8 animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-slate-900">
                 {editingService ? 'Editar Serviço' : 'Novo(a) Serviço'}
@@ -376,3 +376,4 @@ const Services = ({ profile }) => {
 };
 
 export default Services;
+

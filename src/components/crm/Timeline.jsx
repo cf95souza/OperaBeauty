@@ -131,7 +131,7 @@ const Timeline = ({ clientId }) => {
   };
 
   return (
-    <div className="space-y-8 max-w-2xl mx-auto">
+    <div className="space-y-8 max-w-[672px] mx-auto">
       {/* New Post Box */}
       <div className="card-base p-4 bg-white border-slate-200">
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -233,3 +233,4 @@ const Timeline = ({ clientId }) => {
 };
 
 export default Timeline;
+

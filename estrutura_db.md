@@ -1,365 +1,321 @@
-# Estrutura do Banco de Dados - Capelli 👑
+# Estrutura de Banco de Dados Multi-Tenant (SaaS)
 
-Este documento contém o **Script SQL Mestre** para a criação, configuração e segurança de todo o ecossistema de dados do projeto Capelli. 
+Para suportar o novo escopo do OperaBeauty, onde cada salão tem seu próprio link e dados totalmente isolados, utilizaremos o próprio banco de dados para resolver o problema de autenticação. 
 
-> [!IMPORTANT]
-> **Preservação de Dados**: Os comandos de `DROP` estão comentados por segurança. Para um reset total de tabelas (mantendo os usuários do Auth), descomente as linhas iniciais.
+Em vez de depender do `auth.users` global do Supabase (que restringe telefones duplicados no mundo), criaremos nossas próprias tabelas `cap_staff` e `cap_clients` usando a extensão `pgcrypto` para validar senhas de forma segura via RPC.
 
----
+Abaixo está o script **SQL completo (DDL)** para criar essa fundação.
 
 ```sql
 -- ==========================================
--- 1. LIMPEZA DE AMBIENTE (OPCIONAL)
+-- 0. CLEANUP (CUIDADO: APAGA TUDO!)
+-- Rode isso primeiro para limpar a base antiga (Single-Tenant)
 -- ==========================================
--- DROP TABLE IF EXISTS cap_timeline_notes CASCADE;
--- DROP TABLE IF EXISTS cap_appointments CASCADE;
--- DROP TABLE IF EXISTS cap_service_inventory CASCADE;
--- DROP TABLE IF EXISTS cap_inventory CASCADE;
--- DROP TABLE IF EXISTS cap_services CASCADE;
--- DROP TABLE IF EXISTS cap_clients CASCADE;
--- DROP TABLE IF EXISTS cap_vouchers CASCADE;
--- DROP TABLE IF EXISTS cap_business_hours CASCADE;
--- DROP TABLE IF EXISTS cap_blocked_dates CASCADE;
--- DROP TABLE IF EXISTS cap_settings CASCADE;
--- DROP TABLE IF EXISTS cap_profiles CASCADE;
+DROP TABLE IF EXISTS public.cap_timeline_notes CASCADE;
+DROP TABLE IF EXISTS public.cap_appointment_services CASCADE;
+DROP TABLE IF EXISTS public.cap_appointments CASCADE;
+DROP TABLE IF EXISTS public.cap_service_inventory CASCADE;
+DROP TABLE IF EXISTS public.cap_inventory CASCADE;
+DROP TABLE IF EXISTS public.cap_services CASCADE;
+DROP TABLE IF EXISTS public.cap_clients CASCADE;
+DROP TABLE IF EXISTS public.cap_staff CASCADE;
+DROP TABLE IF EXISTS public.cap_profiles CASCADE;
+DROP TABLE IF EXISTS public.cap_business_hours CASCADE;
+DROP TABLE IF EXISTS public.cap_date_exceptions CASCADE;
+DROP TABLE IF EXISTS public.cap_blocked_dates CASCADE;
+DROP TABLE IF EXISTS public.cap_vouchers CASCADE;
+DROP TABLE IF EXISTS public.cap_settings CASCADE;
+DROP TABLE IF EXISTS public.cap_tenants CASCADE;
 
 -- ==========================================
--- 2. CRIAÇÃO DE TABELAS CORE
+-- 1. EXTENSÕES NECESSÁRIAS
 -- ==========================================
-
--- Extensão necessária para UUIDs e Criptografia
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-
--- Perfis de Usuários (Suporta Auth Oficial e Login Interno)
-CREATE TABLE IF NOT EXISTS cap_profiles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    full_name TEXT NOT NULL,
-    role TEXT CHECK (role IN ('admin', 'professional', 'client')) DEFAULT 'professional',
-    is_active BOOLEAN DEFAULT true,
-    access_email TEXT UNIQUE,
-    access_password TEXT, -- Hash pgcrypto
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
-);
-
--- Clientes do Salão
-CREATE TABLE IF NOT EXISTS cap_clients (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name TEXT NOT NULL,
-    phone TEXT NOT NULL UNIQUE,
-    birth_date DATE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
-);
-
--- Catálogo de Serviços
-CREATE TABLE IF NOT EXISTS cap_services (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name TEXT NOT NULL,
-    duration_minutes INTEGER NOT NULL,
-    price NUMERIC(10,2) NOT NULL,
-    maintenance_days INTEGER DEFAULT 30,
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
-);
-
--- Gestão de Estoque (Insumos)
-CREATE TABLE IF NOT EXISTS cap_inventory (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name TEXT NOT NULL,
-    quantity NUMERIC(10,2) DEFAULT 0,
-    unit TEXT CHECK (unit IN ('ml', 'un', 'g')),
-    min_quantity NUMERIC(10,2) DEFAULT 0,
-    is_active BOOLEAN DEFAULT true, -- Novo: Controle de inativação
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
-);
-
--- Relacionamento Serviço x Insumos (O que gasta em cada serviço)
-CREATE TABLE IF NOT EXISTS cap_service_inventory (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    service_id UUID REFERENCES cap_services(id) ON DELETE CASCADE,
-    inventory_id UUID REFERENCES cap_inventory(id) ON DELETE CASCADE,
-    quantity_consumed NUMERIC(10,2) NOT NULL
-);
-
--- Vouchers de Desconto
-CREATE TABLE IF NOT EXISTS cap_vouchers (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code TEXT UNIQUE NOT NULL,
-    discount_type TEXT CHECK (discount_type IN ('percentage', 'fixed')),
-    discount_value NUMERIC(10,2) NOT NULL,
-    is_active BOOLEAN DEFAULT true,
-    expiry_date DATE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
-);
-
--- Agendamentos
-CREATE TABLE IF NOT EXISTS cap_appointments (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    client_id UUID REFERENCES cap_clients(id),
-    service_id UUID REFERENCES cap_services(id),
-    professional_id UUID REFERENCES cap_profiles(id),
-    voucher_id UUID REFERENCES cap_vouchers(id),
-    start_time TIMESTAMP WITH TIME ZONE NOT NULL,
-    end_time TIMESTAMP WITH TIME ZONE NOT NULL,
-    status TEXT CHECK (status IN ('scheduled', 'completed', 'cancelled')) DEFAULT 'scheduled',
-    total_price NUMERIC(10,2),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
-);
-
--- Tabela de ligação para múltiplos serviços (Fase 9)
-CREATE TABLE IF NOT EXISTS cap_appointment_services (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    appointment_id UUID REFERENCES cap_appointments(id) ON DELETE CASCADE,
-    service_id UUID REFERENCES cap_services(id),
-    price_at_time NUMERIC(10,2),
-    duration_at_time INTEGER,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
-);
-
--- Linha do Tempo e Notas CRM
-CREATE TABLE IF NOT EXISTS cap_timeline_notes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    client_id UUID REFERENCES cap_clients(id) ON DELETE CASCADE,
-    professional_id UUID REFERENCES cap_profiles(id),
-    appointment_id UUID REFERENCES cap_appointments(id),
-    content TEXT,
-    image_path TEXT, -- Caminho no Storage Bucket cap_timeline_images
-    type TEXT DEFAULT 'comment',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
-);
 
 -- ==========================================
--- 3. CONFIGURAÇÕES E PARÂMETROS
+-- 2. CRIAÇÃO DAS NOVAS TABELAS (MULTI-TENANT)
 -- ==========================================
 
--- Branding e Identidade
-CREATE TABLE IF NOT EXISTS cap_settings (
+-- 2.1 Tabela Master de Salões (Tenants)
+CREATE TABLE public.cap_tenants (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    salon_name TEXT DEFAULT 'Capelli Real',
-    primary_color TEXT DEFAULT '#be185d',
-    instagram_url TEXT,
-    whatsapp_number TEXT,
+    slug TEXT UNIQUE NOT NULL, -- Ex: 'studiomaria'
+    name TEXT NOT NULL,
+    status TEXT DEFAULT 'active', -- active, suspended
+    plan_price NUMERIC DEFAULT 59.99,
+    
+    -- Customização Visual (Branding)
     logo_url TEXT,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+    primary_color TEXT DEFAULT '#7c5357',
+    secondary_color TEXT DEFAULT '#eeb9bd',
+    tertiary_color TEXT DEFAULT '#f9f9f9',
+    banner_url TEXT,
+    banner_title TEXT,
+    banner_subtitle TEXT,
+    welcome_message TEXT,
+    
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Horários de Funcionamento
-CREATE TABLE IF NOT EXISTS cap_business_hours (
+-- 2. Tabela de Profissionais e Gestores (Isolados por Salão)
+CREATE TABLE public.cap_staff (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    day_of_week INTEGER NOT NULL, -- 0 (Dom) a 6 (Sáb)
-    open_time TIME NOT NULL DEFAULT '09:00',
-    close_time TIME NOT NULL DEFAULT '18:00',
-    is_closed BOOLEAN DEFAULT false
+    tenant_id UUID NOT NULL REFERENCES public.cap_tenants(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('professional', 'manager')),
+    commission_rate NUMERIC DEFAULT 0.00, -- Opcional, para cálculo automático
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(tenant_id, phone) -- Permite o mesmo telefone no salão A e B, mas senhas/usuarios separados
 );
 
--- Datas Bloqueadas (Feriados/Recessos)
-CREATE TABLE IF NOT EXISTS cap_blocked_dates (
+-- 3. Tabela de Clientes (Isolados por Salão)
+CREATE TABLE public.cap_clients (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    blocked_date DATE NOT NULL UNIQUE,
+    tenant_id UUID NOT NULL REFERENCES public.cap_tenants(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    birth_date DATE,
+    password_hash TEXT NOT NULL,
+    anamnese_data JSONB DEFAULT '{}'::jsonb, -- 100% Dinâmico e Aberto para o Gestor customizar
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(tenant_id, phone)
+);
+
+-- 4. Serviços
+CREATE TABLE public.cap_services (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES public.cap_tenants(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    duration_minutes INT NOT NULL,
+    price NUMERIC NOT NULL,
+    reduces_stock BOOLEAN DEFAULT FALSE, -- Flag se exige baixa de estoque
+    maintenance_days INT DEFAULT 0, -- Dias para retorno (0 se não houver)
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 4.1. Horários de Funcionamento Padrão
+CREATE TABLE public.cap_business_hours (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES public.cap_tenants(id) ON DELETE CASCADE,
+    day_of_week INTEGER NOT NULL,
+    open_time TIME NOT NULL,
+    close_time TIME NOT NULL,
+    is_closed BOOLEAN DEFAULT FALSE,
+    UNIQUE(tenant_id, day_of_week)
+);
+
+-- 4.2. Exceções de Datas e Bloqueios
+CREATE TABLE public.cap_date_exceptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES public.cap_tenants(id) ON DELETE CASCADE,
+    exception_date DATE NOT NULL,
+    is_closed BOOLEAN DEFAULT FALSE,
+    open_time TIME,
+    close_time TIME,
     reason TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(tenant_id, exception_date)
 );
 
--- ==========================================
--- 4. SEGURANÇA (ROW LEVEL SECURITY)
--- ==========================================
+-- 5. Estoque
+CREATE TABLE public.cap_inventory (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES public.cap_tenants(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    quantity NUMERIC NOT NULL DEFAULT 0,
+    unit TEXT NOT NULL, -- ml, un, gr
+    min_quantity NUMERIC NOT NULL DEFAULT 0,
+    type TEXT DEFAULT 'professional', -- 'sale' ou 'professional'
+    price NUMERIC DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
--- Habilitar RLS em todas as tabelas
-ALTER TABLE cap_profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cap_clients ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cap_services ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cap_inventory ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cap_appointments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cap_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cap_business_hours ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cap_blocked_dates ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cap_timeline_notes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cap_appointment_services ENABLE ROW LEVEL SECURITY;
+-- 6. Relação Serviço x Estoque (Quantos itens o serviço gasta)
+CREATE TABLE public.cap_service_inventory (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES public.cap_tenants(id) ON DELETE CASCADE,
+    service_id UUID NOT NULL REFERENCES public.cap_services(id) ON DELETE CASCADE,
+    inventory_id UUID NOT NULL REFERENCES public.cap_inventory(id) ON DELETE CASCADE,
+    quantity_consumed NUMERIC NOT NULL -- Ex: 30 (ml)
+);
 
--- POLÍTICAS: PROFILES
-CREATE POLICY "Leitura pública de profissionais ativos" ON cap_profiles FOR SELECT TO public USING (is_active = true);
--- REMOVIDO: "Permitir inserção de novo perfil no registro" (Auto-cadastro desativado)
-CREATE POLICY "Profissionais leem seu próprio perfil pendente" ON cap_profiles FOR SELECT TO public USING (auth.uid() = id);
-CREATE POLICY "Profiles: Donos veem tudo" ON cap_profiles FOR ALL TO authenticated USING (true);
+-- 7. Agendamentos
+CREATE TABLE public.cap_appointments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES public.cap_tenants(id) ON DELETE CASCADE,
+    client_id UUID NOT NULL REFERENCES public.cap_clients(id),
+    staff_id UUID NOT NULL REFERENCES public.cap_staff(id),
+    service_id UUID NOT NULL REFERENCES public.cap_services(id),
+    start_time TIMESTAMPTZ NOT NULL,
+    end_time TIMESTAMPTZ NOT NULL,
+    status TEXT NOT NULL DEFAULT 'scheduled', -- scheduled, in-progress, completed, cancelled
+    total_price NUMERIC NOT NULL,
+    staff_commission_value NUMERIC DEFAULT 0, -- Calculado automaticamente ao concluir
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
--- POLÍTICAS: CLIENTES
-CREATE POLICY "Clientes: Inserção anônima" ON cap_clients FOR INSERT TO public WITH CHECK (true);
-CREATE POLICY "Clientes: Leitura pública por fone" ON cap_clients FOR SELECT TO public USING (true);
-CREATE POLICY "Clientes: Gestão autenticada" ON cap_clients FOR ALL TO authenticated USING (true);
-
--- POLÍTICAS: AGENDAMENTOS
-CREATE POLICY "Appointments: Inserção pública" ON cap_appointments FOR INSERT TO public WITH CHECK (true);
-CREATE POLICY "Appointments: Leitura por todos" ON cap_appointments FOR SELECT TO public USING (true);
-CREATE POLICY "Appointments: Gestão autenticada" ON cap_appointments FOR ALL TO authenticated USING (true);
-
--- POLÍTICAS: AGENDAMENTO SERVIÇOS (Combo 1:N)
-CREATE POLICY "Appt Services: Leitura pública" ON cap_appointment_services FOR SELECT TO public USING (true);
-CREATE POLICY "Appt Services: Gestão autenticada" ON cap_appointment_services FOR ALL TO authenticated USING (true);
-
--- POLÍTICAS: CONFIGS (Leitura pública para o portal funcionar)
-CREATE POLICY "Settings: Leitura pública" ON cap_settings FOR SELECT TO public USING (true);
-CREATE POLICY "Settings: Admin edita" ON cap_settings FOR ALL TO authenticated USING (true);
-CREATE POLICY "Hours: Leitura pública" ON cap_business_hours FOR SELECT TO public USING (true);
-CREATE POLICY "Blocked: Leitura pública" ON cap_blocked_dates FOR SELECT TO public USING (true);
-
--- ==========================================
--- 5. DADOS SEMENTE (SEEDS)
--- ==========================================
-
--- Inserir Configuração Inicial (1 linha apenas)
-INSERT INTO cap_settings (id, salon_name) 
-VALUES ('00000000-0000-0000-0000-000000000001', 'Capelli Real')
-ON CONFLICT (id) DO NOTHING;
-
--- Inserir Horários Padrão
-INSERT INTO cap_business_hours (day_of_week, open_time, close_time, is_closed) VALUES
-(0, '00:00', '00:00', true),
-(1, '09:00', '18:00', false),
-(2, '09:00', '18:00', false),
-(3, '09:00', '18:00', false),
-(4, '09:00', '18:00', false),
-(5, '09:00', '18:00', false),
-(6, '09:00', '18:00', false)
-ON CONFLICT DO NOTHING;
+-- 8. Prontuários e Histórico
+CREATE TABLE public.cap_timeline_notes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES public.cap_tenants(id) ON DELETE CASCADE,
+    client_id UUID NOT NULL REFERENCES public.cap_clients(id),
+    appointment_id UUID REFERENCES public.cap_appointments(id),
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
 
 -- ==========================================
--- 6. AUTOMAÇÕES (TRIGGERS)
+-- 9. DESABILITAR RLS (TEMPORÁRIO PARA DESENVOLVIMENTO)
+-- O Supabase pode bloquear as consultas no frontend se o RLS for ativado automaticamente.
 -- ==========================================
+ALTER TABLE public.cap_tenants DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cap_clients DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cap_staff DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cap_services DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cap_inventory DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cap_service_inventory DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cap_appointments DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cap_timeline_notes DISABLE ROW LEVEL SECURITY;
 
--- Função para manipular baixa e estorno de estoque
-CREATE OR REPLACE FUNCTION cap_handle_stock_on_appointment_change()
-RETURNS TRIGGER AS $$
+### Funções RPC para Autenticação (Banco de Dados)
+
+Para validarmos o login com segurança (sem transitar senhas puras), usaremos funções RPC dentro do próprio Supabase. O Frontend manda a senha crua, o banco criptografa e compara internamente.
+
+```sql
+-- Função para Criar Cliente com Senha Segura
+CREATE OR REPLACE FUNCTION cap_register_client(p_tenant_id UUID, p_name TEXT, p_phone TEXT, p_password TEXT)
+RETURNS UUID AS $$
 DECLARE
-    service_item RECORD;
+    new_id UUID;
 BEGIN
-    -- BAIXA DE ESTOQUE: Agendamento marcado como concluído
-    IF (OLD.status != 'completed' OR OLD.status IS NULL) AND NEW.status = 'completed' THEN
-        -- Itera sobre todos os serviços vinculados a este agendamento
-        FOR service_item IN 
-            SELECT ci.id as inventory_id, csi.quantity_consumed 
-            FROM cap_appointment_services cas
-            JOIN cap_service_inventory csi ON csi.service_id = cas.service_id
-            JOIN cap_inventory ci ON ci.id = csi.inventory_id
-            WHERE cas.appointment_id = NEW.id
-        LOOP
-            UPDATE cap_inventory 
-            SET quantity = quantity - service_item.quantity_consumed
-            WHERE id = service_item.inventory_id;
-        END LOOP;
-    END IF;
-
-    -- ESTORNO DE ESTOQUE: Agendamento concluído que foi cancelado
-    IF OLD.status = 'completed' AND NEW.status = 'cancelled' THEN
-        FOR service_item IN 
-            SELECT ci.id as inventory_id, csi.quantity_consumed 
-            FROM cap_appointment_services cas
-            JOIN cap_service_inventory csi ON csi.service_id = cas.service_id
-            JOIN cap_inventory ci ON ci.id = csi.inventory_id
-            WHERE cas.appointment_id = NEW.id
-        LOOP
-            UPDATE cap_inventory 
-            SET quantity = quantity + service_item.quantity_consumed
-            WHERE id = service_item.inventory_id;
-        END LOOP;
-    END IF;
-
-    RETURN NEW;
+    INSERT INTO public.cap_clients (tenant_id, name, phone, password_hash)
+    VALUES (p_tenant_id, p_name, p_phone, crypt(p_password, gen_salt('bf')))
+    RETURNING id INTO new_id;
+    
+    RETURN new_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Gatilho aplicado à tabela de agendamentos
-DROP TRIGGER IF EXISTS trig_handle_stock_change ON cap_appointments;
-CREATE TRIGGER trig_handle_stock_change
-AFTER UPDATE ON cap_appointments
-FOR EACH ROW
-EXECUTE FUNCTION cap_handle_stock_on_appointment_change();
-
--- ==========================================
--- 7. FUNÇÕES ADMINISTRATIVAS (RPC)
--- ==========================================
-
--- Função para Criar Usuário Interno (Admin Only)
-CREATE OR REPLACE FUNCTION cap_admin_create_internal_user(
-    p_email text,
-    p_password text,
-    p_full_name text,
-    p_role text DEFAULT 'professional'
-) RETURNS json AS $$
+-- Função para Login de Cliente
+CREATE OR REPLACE FUNCTION cap_login_client(p_tenant_slug TEXT, p_phone TEXT, p_password TEXT)
+RETURNS jsonb AS $$
 DECLARE
-    new_user_id uuid;
+    v_tenant_id UUID;
+    v_client RECORD;
 BEGIN
-    -- 1. Validação de Permissão
-    IF NOT EXISTS (
-        SELECT 1 FROM cap_profiles WHERE id = auth.uid() AND role = 'admin'
-    ) THEN
-        RAISE EXCEPTION 'Acesso Negado.';
-    END IF;
+    -- 1. Achar o tenant pelo slug
+    SELECT id INTO v_tenant_id FROM public.cap_tenants WHERE slug = p_tenant_slug AND status = 'active';
+    IF NOT FOUND THEN RETURN NULL; END IF;
 
-    -- 2. Inserção direta no Perfil com Senha Criptografada
-    INSERT INTO cap_profiles (id, full_name, role, is_active, access_email, access_password)
+    -- 2. Achar cliente e validar senha usando pgcrypto
+    SELECT id, name, phone INTO v_client
+    FROM public.cap_clients 
+    WHERE tenant_id = v_tenant_id 
+      AND phone = p_phone 
+      AND password_hash = crypt(p_password, password_hash);
+      
+    IF NOT FOUND THEN RETURN NULL; END IF;
+
+    -- 3. Retornar os dados não sensíveis
+    RETURN jsonb_build_object('id', v_client.id, 'name', v_client.name, 'tenant_id', v_tenant_id, 'role', 'client');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- O MESMO PADRÃO PODE SER APLICADO PARA O cap_staff (Profissionais/Gestores)
+CREATE OR REPLACE FUNCTION cap_login_staff(p_tenant_slug TEXT, p_phone TEXT, p_password TEXT)
+RETURNS jsonb AS $$
+DECLARE
+    v_tenant_id UUID;
+    v_staff RECORD;
+BEGIN
+    -- 1. Achar o tenant pelo slug
+    SELECT id INTO v_tenant_id FROM public.cap_tenants WHERE slug = p_tenant_slug AND status = 'active';
+    IF NOT FOUND THEN RETURN NULL; END IF;
+
+    -- 2. Achar staff e validar senha usando pgcrypto
+    SELECT id, name, phone, role INTO v_staff
+    FROM public.cap_staff 
+    WHERE tenant_id = v_tenant_id 
+      AND phone = p_phone 
+      AND password_hash = crypt(p_password, password_hash)
+      AND is_active = true;
+      
+    IF NOT FOUND THEN RETURN NULL; END IF;
+
+    -- 3. Retornar os dados não sensíveis
+    RETURN jsonb_build_object('id', v_staff.id, 'name', v_staff.name, 'tenant_id', v_tenant_id, 'role', v_staff.role);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Função para Criar um Membro da Equipe com Senha Segura
+CREATE OR REPLACE FUNCTION cap_register_staff(
+    p_tenant_id UUID, 
+    p_name TEXT, 
+    p_phone TEXT, 
+    p_password TEXT, 
+    p_role TEXT DEFAULT 'professional'
+)
+RETURNS UUID AS $$
+DECLARE
+    new_id UUID;
+BEGIN
+    INSERT INTO public.cap_staff (tenant_id, name, phone, password_hash, role, is_active)
     VALUES (
-        gen_random_uuid(), 
-        p_full_name, 
-        p_role, 
-        true, 
-        p_email, 
-        crypt(p_password, gen_salt('bf'))
+        p_tenant_id, 
+        p_name, 
+        p_phone, 
+        crypt(p_password, gen_salt('bf')),
+        p_role,
+        true
     )
-    RETURNING id INTO new_user_id;
-
-    RETURN json_build_object('id', new_user_id, 'success', true);
+    RETURNING id INTO new_id;
+    
+    RETURN new_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Função para Resetar Senha (Interna / Admin Only)
-CREATE OR REPLACE FUNCTION cap_admin_set_password(
-    p_user_id uuid,
-    p_new_password text
-) RETURNS boolean AS $$
+-- Função para Atualizar um Membro da Equipe (incluindo Senha Segura opcional)
+CREATE OR REPLACE FUNCTION cap_update_staff(
+    p_staff_id UUID, 
+    p_tenant_id UUID,
+    p_name TEXT, 
+    p_phone TEXT, 
+    p_password TEXT, 
+    p_role TEXT,
+    p_is_active BOOLEAN
+)
+RETURNS void AS $$
 BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM cap_profiles WHERE id = auth.uid() AND role = 'admin'
-    ) THEN
-        RAISE EXCEPTION 'Acesso Negado.';
+    IF p_password IS NOT NULL AND p_password != '' THEN
+        UPDATE public.cap_staff 
+        SET name = p_name, phone = p_phone, role = p_role, is_active = p_is_active, password_hash = crypt(p_password, gen_salt('bf'))
+        WHERE id = p_staff_id AND tenant_id = p_tenant_id;
+    ELSE
+        UPDATE public.cap_staff 
+        SET name = p_name, phone = p_phone, role = p_role, is_active = p_is_active
+        WHERE id = p_staff_id AND tenant_id = p_tenant_id;
     END IF;
-
-    UPDATE cap_profiles 
-    SET access_password = crypt(p_new_password, gen_salt('bf'))
-    WHERE id = p_user_id;
-
--- Função para o próprio usuário alterar sua senha (Interno)
-CREATE OR REPLACE FUNCTION cap_update_self_password(
-    p_user_id uuid,
-    p_new_password text
-) RETURNS boolean AS $$
-BEGIN
-    -- Permitir apenas se o próprio usuário estiver alterando
-    -- No caso interno, o app passará o ID da sessão. No banco validamos apenas a existência.
-    UPDATE cap_profiles 
-    SET access_password = crypt(p_new_password, gen_salt('bf'))
-    WHERE id = p_user_id;
-
-    RETURN true;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Função para Verificar Login Interno
-CREATE OR REPLACE FUNCTION cap_verify_login(
-    p_email text,
-    p_password text
-) RETURNS TABLE (
-    user_id uuid,
-    full_name text,
-    role text,
-    is_active boolean
-) AS $$
+-- Função para Atualizar a Senha de um Cliente pelo Gestor
+CREATE OR REPLACE FUNCTION cap_update_client_password(
+    p_client_id UUID, 
+    p_tenant_id UUID,
+    p_password TEXT
+)
+RETURNS void AS $$
 BEGIN
-    RETURN QUERY
-    SELECT id, cap_profiles.full_name, cap_profiles.role, cap_profiles.is_active
-    FROM cap_profiles
-    WHERE access_email = p_email 
-    AND access_password = crypt(p_password, access_password)
-    AND cap_profiles.is_active = true;
+    UPDATE public.cap_clients 
+    SET password_hash = crypt(p_password, gen_salt('bf'))
+    WHERE id = p_client_id AND tenant_id = p_tenant_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 ```

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import LoginPhoneStep from '../components/booking/LoginPhoneStep';
 import { 
   Crown, 
   Phone, 
@@ -40,7 +41,7 @@ const PublicBooking = ({ branding }) => {
   const { showSuccess, showError } = useNotification();
   const [step, setStep] = useState('welcome'); 
   const [loading, setLoading] = useState(false);
-  const [settings, setSettings] = useState({ salon_name: 'Capelli', primary_color: '#be185d', logo_url: '' });
+  const [settings, setSettings] = useState({ salon_name: 'OperaBeauty', primary_color: '#be185d', logo_url: '' });
   
   const [phone, setPhone] = useState('');
   const [client, setClient] = useState(null);
@@ -164,10 +165,20 @@ const PublicBooking = ({ branding }) => {
     setLoading(true);
     const totalDuration = servicesList.reduce((acc, s) => acc + s.duration_minutes, 0);
     try {
-      const { data: blocked } = await supabase.from('cap_blocked_dates').select('*').eq('blocked_date', format(date, 'yyyy-MM-dd')).maybeSingle();
-      const { data: hours } = await supabase.from('cap_business_hours').select('*').eq('day_of_week', date.getDay()).maybeSingle();
+      const { data: exception } = await supabase.from('cap_date_exceptions').select('*').eq('exception_date', format(date, 'yyyy-MM-dd')).maybeSingle();
+      const { data: defaultHours } = await supabase.from('cap_business_hours').select('*').eq('day_of_week', date.getDay()).maybeSingle();
       
-      if (blocked || !hours || hours.is_closed) {
+      let hours = null;
+      if (exception) {
+        if (exception.is_closed) {
+          setAvailableSlots([]);
+          setLoading(false);
+          return;
+        }
+        hours = { open_time: exception.open_time, close_time: exception.close_time };
+      } else if (defaultHours && !defaultHours.is_closed) {
+        hours = defaultHours;
+      } else {
         setAvailableSlots([]);
         setLoading(false);
         return;
@@ -241,33 +252,33 @@ const PublicBooking = ({ branding }) => {
             <Crown size={20} />
           </div>
           <div>
-            <h1 className="text-xl font-serif text-slate-900 tracking-tight leading-none">{branding?.salonName || 'Capelli'}</h1>
+            <h1 className="text-xl font-serif text-slate-900 tracking-tight leading-none">{branding?.salonName || 'OperaBeauty'}</h1>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Agendamento Oficial</p>
           </div>
         </div>
         {client && <div className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-full text-xs font-black text-slate-600 uppercase tracking-tighter shadow-sm">{client.name.split(' ')[0]}</div>}
       </nav>
 
-      <main className="max-w-xl mx-auto px-6 py-12">
+      <main className="max-w-[576px] mx-auto px-6 py-12">
         {step === 'welcome' && (
           <div className="text-center py-10 space-y-12 animate-in fade-in zoom-in duration-700">
              <div className="w-24 h-24 bg-accent/5 text-accent rounded-[2.5rem] flex items-center justify-center mx-auto border border-accent/10 shadow-inner"><Crown size={48} /></div>
              <div className="space-y-4">
-                <h2 className="text-4xl font-black text-slate-900 tracking-tighter leading-[0.9]">BEM-VINDO(A) AO <br/> <span className="text-accent">{branding?.salonName || 'Capelli'}</span></h2>
-                <p className="text-slate-500 font-medium text-lg max-w-xs mx-auto">Sua jornada de beleza começa agora.</p>
+                <h2 className="text-4xl font-black text-slate-900 tracking-tighter leading-[0.9]">BEM-VINDO(A) AO <br/> <span className="text-accent">{branding?.salonName || 'OperaBeauty'}</span></h2>
+                <p className="text-slate-500 font-medium text-lg max-w-[320px] mx-auto">Sua jornada de beleza começa agora.</p>
              </div>
              <button onClick={() => setStep('identify')} className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black text-lg shadow-2xl active:scale-95 transition-all uppercase">Iniciar Agendamento</button>
           </div>
         )}
 
         {step === 'identify' && (
-          <div className="space-y-8 animate-in slide-in-from-bottom-12 duration-500">
-             <div className="text-center space-y-2"><h2 className="text-3xl font-black tracking-tighter text-slate-900 uppercase leading-none">Identificação</h2><p className="text-slate-400 font-medium">Informe seu celular para continuarmos.</p></div>
-             <form onSubmit={handleIdentify} className="space-y-6">
-                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(00) 00000-0000" className="w-full bg-white border border-slate-200 p-6 rounded-[1.8rem] text-xl font-black shadow-sm outline-none focus:border-accent transition-all" />
-                <button disabled={loading || phone.length < 10} className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black shadow-xl"> {loading ? <Loader2 className="animate-spin mx-auto" /> : 'PROSSEGUIR'} </button>
-             </form>
-          </div>
+          <LoginPhoneStep 
+            phone={phone} 
+            setPhone={setPhone} 
+            handleIdentify={handleIdentify} 
+            loading={loading} 
+            branding={branding} 
+          />
         )}
 
         {step === 'register' && (
@@ -393,7 +404,7 @@ const PublicBooking = ({ branding }) => {
           <div className="text-center py-20 animate-in zoom-in-95 duration-700 space-y-10">
             <div className="w-32 h-32 bg-emerald-50 text-emerald-500 rounded-[3rem] flex items-center justify-center mx-auto border border-emerald-100 shadow-inner"><CheckCircle2 size={64} /></div>
             <h2 className="text-4xl font-black text-slate-900 tracking-tighter leading-tight uppercase">Agendado com Sucesso!</h2>
-            <p className="text-slate-500 font-medium text-lg max-w-xs mx-auto leading-relaxed">Sua jornada de beleza foi reservada com sucesso.</p>
+            <p className="text-slate-500 font-medium text-lg max-w-[320px] mx-auto leading-relaxed">Sua jornada de beleza foi reservada com sucesso.</p>
             <div className="pt-8"><button onClick={() => window.location.reload()} className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black text-lg shadow-xl hover:bg-accent transition-all uppercase">Ver histórico</button></div>
           </div>
         )}
@@ -450,10 +461,11 @@ const PublicBooking = ({ branding }) => {
         )}
       </main>
       <footer className="text-center py-6 text-[10px] font-bold text-slate-300 uppercase tracking-widest">
-        &copy; {new Date().getFullYear()} {branding?.salonName || 'Capelli'}. Todos os direitos reservados.
+        &copy; {new Date().getFullYear()} {branding?.salonName || 'OperaBeauty'}. Todos os direitos reservados.
       </footer>
     </div>
   );
 };
 
 export default PublicBooking;
+

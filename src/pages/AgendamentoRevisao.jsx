@@ -1,0 +1,260 @@
+import React, { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useTenant } from '../context/TenantContext';
+import { useBooking } from '../context/BookingContext';
+import { supabase } from '../lib/supabase';
+
+const AgendamentoRevisao = () => {
+  const { tenant_slug } = useParams();
+  const navigate = useNavigate();
+  const { tenant, session } = useTenant();
+  const { bookingData } = useBooking();
+  const [loading, setLoading] = useState(false);
+  const [coupon, setCoupon] = useState('');
+  const [couponApplied, setCouponApplied] = useState(false);
+
+  const servicePrice = bookingData.service?.price || 280;
+  const [discount, setDiscount] = useState(0);
+  const tax = 0;
+  const total = servicePrice - discount + tax;
+
+  const handleConfirm = async () => {
+    if (!session || session.role !== 'client') {
+      alert("Por favor, faça login ou cadastre-se para confirmar o agendamento.");
+      navigate(`/${tenant_slug}/login`);
+      return;
+    }
+
+    setLoading(true);
+    
+    // Parse start time and end time
+    const startDateTimeStr = `${bookingData.date}T${bookingData.time}:00`;
+    const startDateTime = new Date(startDateTimeStr);
+    const endDateTime = new Date(startDateTime.getTime() + (bookingData.service.duration * 60000));
+    
+    try {
+      const { error } = await supabase.from('cap_appointments').insert([{
+        tenant_id: tenant.id,
+        client_id: session.id,
+        professional_id: bookingData.professional?.id || null,
+        service_id: bookingData.service.id,
+        start_time: startDateTime.toISOString(),
+        end_time: endDateTime.toISOString(),
+        status: 'scheduled',
+        total_price: total
+      }]);
+
+      if (error) throw error;
+      
+      // Se usou cupom e tem id (ou seja, veio do banco e não é um mock vazio), incrementa o uso
+      if (couponApplied && couponApplied.id) {
+         await supabase.rpc('increment_coupon_uses', { p_coupon_id: couponApplied.id });
+         // NOTA: Se a função RPC não existir, fazemos um update direto via query (assumindo que seja seguro sem concorrência extrema)
+         // Mas como a concorrência pode ser grande, seria ideal ter o RPC, mas vamos fazer via update simples por agora
+         const { data: c } = await supabase.from('cap_coupons').select('current_uses').eq('id', couponApplied.id).single();
+         if (c) {
+           await supabase.from('cap_coupons').update({ current_uses: c.current_uses + 1 }).eq('id', couponApplied.id);
+         }
+      }
+
+      navigate(`/${tenant_slug}/agendar/confirmado`);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao confirmar agendamento: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!coupon.trim()) return;
+    setLoading(true);
+    
+    try {
+      const { data, error } = await supabase
+        .from('cap_coupons')
+        .select('*')
+        .eq('tenant_id', tenant.id)
+        .eq('code', coupon.toUpperCase().trim())
+        .single();
+        
+      if (error || !data) {
+        alert("Cupom inválido ou não encontrado.");
+        setCouponApplied(false);
+        setDiscount(0);
+        return;
+      }
+      
+      if (data.max_uses && data.current_uses >= data.max_uses) {
+        alert("Este cupom já atingiu o limite de usos.");
+        return;
+      }
+      
+      if (data.expires_at && new Date(data.expires_at) < new Date()) {
+         alert("Este cupom já expirou.");
+         return;
+      }
+      
+      let calcDiscount = 0;
+      if (data.discount_type === 'percentage') {
+         calcDiscount = servicePrice * (data.discount_value / 100);
+      } else {
+         calcDiscount = data.discount_value;
+      }
+      
+      // Garante que o desconto não seja maior que o preço do serviço
+      if (calcDiscount > servicePrice) calcDiscount = servicePrice;
+      
+      setDiscount(calcDiscount);
+      setCouponApplied(data);
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao validar cupom.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="font-body-md text-on-background bg-[#f9f9f9] min-h-screen pb-[120px]">
+      <header className="w-full top-0 sticky bg-[#f9f9f9] shadow-sm z-50">
+        <div className="flex justify-between items-center px-[16px] py-[8px] w-full max-w-7xl mx-auto">
+          <button onClick={() => navigate(-1)} className="text-primary hover:opacity-80 transition-opacity">
+            <span className="material-symbols-outlined">arrow_back</span>
+          </button>
+          <h1 className="font-headline-md text-[24px] font-semibold text-primary tracking-tight">
+            {tenant?.name || 'Ethereal Grace'}
+          </h1>
+          <div className="w-10 h-10 rounded-full overflow-hidden border border-primary-container bg-[#e4e2e1]">
+             <span className="material-symbols-outlined mt-2 ml-2 text-[#656464]">person</span>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-[576px] mx-auto px-[16px] pt-[40px] space-y-[24px]">
+        <div className="animate-fade-in-up">
+          <h2 className="font-serif text-[28px] font-semibold text-on-surface">Revisar Agendamento</h2>
+          <p className="font-sans text-[16px] text-secondary mt-[4px]">Confirme os detalhes da sua experiência de beleza.</p>
+        </div>
+
+        <section className="animate-fade-in-up bg-white rounded-xl shadow-[0px_4px_20px_rgba(0,0,0,0.04)] overflow-hidden" style={{ animationDelay: '0.1s' }}>
+          <div className="p-[16px] space-y-[16px]">
+            <div className="flex items-start gap-[16px]">
+              <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-[#e8b4b8]">
+                <span className="material-symbols-outlined w-full h-full flex items-center justify-center text-white text-[32px]">
+                  {bookingData.service?.icon || 'spa'}
+                </span>
+              </div>
+              <div className="flex-1">
+                <span className="font-semibold text-[12px] text-primary uppercase tracking-wider">
+                  {bookingData.service?.category || 'Tratamento'}
+                </span>
+                <h3 className="font-serif text-[24px] font-semibold text-on-surface mt-[4px]">
+                  {bookingData.service?.name || 'Hidratação Profunda Glow'}
+                </h3>
+                <p className="font-sans text-[16px] text-secondary">{bookingData.service?.duration || '60'} minutos</p>
+              </div>
+            </div>
+
+            <div className="h-[1px] bg-[#d4c2c3]/50 w-full"></div>
+
+            <div className="grid grid-cols-2 gap-[16px]">
+              <div className="space-y-[4px]">
+                <div className="flex items-center gap-[4px] text-primary">
+                  <span className="material-symbols-outlined text-[18px]">person</span>
+                  <span className="font-semibold text-[14px]">Profissional</span>
+                </div>
+                <p className="font-sans text-[16px] font-semibold text-on-surface">
+                  {bookingData.professional?.name || 'Sem preferência'}
+                </p>
+              </div>
+              <div className="space-y-[4px]">
+                <div className="flex items-center gap-[4px] text-primary">
+                  <span className="material-symbols-outlined text-[18px]">calendar_month</span>
+                  <span className="font-semibold text-[14px]">Data e Hora</span>
+                </div>
+                <p className="font-sans text-[16px] font-semibold text-on-surface">
+                  {bookingData.date ? `${bookingData.date}, ${bookingData.time}` : '15 Set, 14:30'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="animate-fade-in-up space-y-[8px]" style={{ animationDelay: '0.2s' }}>
+          <label className="font-semibold text-[14px] text-on-surface px-[4px]" htmlFor="coupon">Cupom de Desconto</label>
+          <div className="flex gap-[8px]">
+            <input 
+              id="coupon" 
+              type="text"
+              value={coupon}
+              onChange={(e) => setCoupon(e.target.value)}
+              disabled={couponApplied}
+              placeholder="Digite seu código"
+              className="flex-1 bg-[#f3f3f4] border-0 border-b border-[#d4c2c3] focus:border-primary focus:ring-0 px-[16px] py-[8px] rounded-t-lg font-sans transition-colors outline-none"
+            />
+            <button 
+              onClick={handleApplyCoupon}
+              disabled={couponApplied}
+              className={`px-[24px] py-[8px] rounded-xl font-semibold text-[14px] transition-colors ${
+                couponApplied ? 'bg-primary text-white opacity-80' : 'bg-[#5f5e5e] text-white hover:opacity-90'
+              }`}
+            >
+              {couponApplied ? 'Aplicado!' : 'Aplicar'}
+            </button>
+          </div>
+        </section>
+
+        <section className="animate-fade-in-up bg-[#f3f3f4] rounded-xl p-[16px] space-y-[8px]" style={{ animationDelay: '0.3s' }}>
+          <div className="flex justify-between items-center">
+            <span className="font-sans text-[16px] text-secondary">Subtotal</span>
+            <span className="font-sans text-[16px] text-on-surface">R$ {servicePrice.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between items-center text-primary">
+            <span className="font-sans text-[16px]">Desconto (Cupom)</span>
+            <span className="font-sans text-[16px]">- R$ {discount.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between items-center hidden">
+            <span className="font-sans text-[16px] text-secondary">Taxa de Serviço</span>
+            <span className="font-sans text-[16px] text-on-surface">R$ {tax.toFixed(2)}</span>
+          </div>
+          <div className="h-[1px] bg-[#d4c2c3]/50 w-full my-[8px]"></div>
+          <div className="flex justify-between items-center pt-[4px]">
+            <span className="font-serif text-[24px] font-semibold text-on-surface">Total</span>
+            <span className="font-serif text-[24px] font-semibold text-primary">R$ {total.toFixed(2)}</span>
+          </div>
+        </section>
+
+        <div className="animate-fade-in-up flex items-center gap-[8px] bg-[#e8b4b8]/20 p-[16px] rounded-xl" style={{ animationDelay: '0.4s' }}>
+          <span className="material-symbols-outlined text-[#6b4448]">info</span>
+          <p className="font-medium text-[12px] text-[#6b4448]">
+            O pagamento será realizado presencialmente após o serviço.
+          </p>
+        </div>
+      </main>
+
+      <div className="fixed bottom-0 left-0 w-full p-[16px] bg-white/80 backdrop-blur-md z-50">
+        <div className="max-w-[576px] mx-auto">
+          <button 
+            onClick={handleConfirm}
+            disabled={loading}
+            className={`w-full bg-primary text-white py-[24px] rounded-full font-semibold text-[18px] shadow-lg hover:scale-[0.98] active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 ${
+              loading ? 'bg-[#5f5e5e]' : ''
+            }`}
+          >
+            {loading ? (
+              <>
+                <span className="material-symbols-outlined animate-spin">sync</span> Processando...
+              </>
+            ) : (
+              'Confirmar Agendamento'
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AgendamentoRevisao;
+
