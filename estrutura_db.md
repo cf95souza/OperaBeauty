@@ -353,4 +353,18 @@ CREATE TABLE public.cap_invoices (
     reference_month TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- 13. Planos da Plataforma (SaaS)
+CREATE TABLE public.cap_plans (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    price NUMERIC(10, 2) NOT NULL,
+    interval TEXT DEFAULT 'month',
+    max_professionals INTEGER NULL,
+    features JSONB DEFAULT '[]'::jsonb,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.cap_plans DISABLE ROW LEVEL SECURITY;
 ```

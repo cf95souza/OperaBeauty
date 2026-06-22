@@ -119,7 +119,7 @@ const PlanosAdmin = () => {
       fetchPlans();
     } catch (error) {
       console.error('Error saving plan:', error);
-      alert('Erro ao salvar plano. Certifique-se de que a tabela cap_plans existe no banco de dados.');
+      alert('Erro ao salvar plano. Detalhes: ' + (error.message || JSON.stringify(error)));
     } finally {
       setIsSaving(false);
     }
