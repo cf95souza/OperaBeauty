@@ -1,10 +1,11 @@
-# Estrutura de Banco de Dados Multi-Tenant (SaaS)
+# Estrutura de Banco de Dados Multi-Tenant (SaaS) - **Versão Oficial V 1.0 (Homologação)**
 
 Para suportar o novo escopo do OperaBeauty, onde cada salão tem seu próprio link e dados totalmente isolados, utilizaremos o próprio banco de dados para resolver o problema de autenticação. 
 
-Em vez de depender do `auth.users` global do Supabase (que restringe telefones duplicados no mundo), criaremos nossas próprias tabelas `cap_staff` e `cap_clients` usando a extensão `pgcrypto` para validar senhas de forma segura via RPC.
+Em vez de depender do `auth.users` global do Supabase (que restringe telefones duplicados no mundo), criamos nossas próprias tabelas `cap_staff` e `cap_clients` usando a extensão `pgcrypto` para validar senhas de forma segura via RPC.
 
-Abaixo está o script **SQL completo (DDL)** para criar essa fundação.
+Abaixo está o script **SQL COMPLETO E DEFINITIVO (DDL)** para a criação da base de dados do novo ambiente de Homologação/Produção.
+Este arquivo deve ser rodado de forma sequencial no novo banco.
 
 ```sql
 -- ==========================================
@@ -37,7 +38,28 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 2. CRIAÇÃO DAS NOVAS TABELAS (MULTI-TENANT)
 -- ==========================================
 
--- 2.1 Tabela Master de Salões (Tenants)
+-- 2.1 Tabela de Planos de Assinatura (SaaS)
+CREATE TABLE public.cap_plans (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    price NUMERIC NOT NULL,
+    interval TEXT DEFAULT 'month',
+    max_professionals INT, -- NULL ou 0 significa ilimitado
+    features JSONB DEFAULT '[]'::jsonb,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2.2 Tabela de Configurações Globais da Plataforma (Ex: Gateway de Pagamento)
+CREATE TABLE public.cap_platform_settings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    payment_gateway TEXT DEFAULT 'mercadopago', -- abacatepay, mercadopago, stripe
+    gateway_api_key TEXT,
+    gateway_public_key TEXT,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2.3 Tabela Master de Salões (Tenants)
 CREATE TABLE public.cap_tenants (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     slug TEXT UNIQUE NOT NULL, -- Ex: 'studiomaria'
@@ -318,4 +340,17 @@ BEGIN
     WHERE id = p_client_id AND tenant_id = p_tenant_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 12. Faturas da Plataforma (SaaS)
+CREATE TABLE public.cap_invoices (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES public.cap_tenants(id) ON DELETE CASCADE,
+    amount NUMERIC NOT NULL,
+    status TEXT DEFAULT 'pending', -- 'pending', 'paid', 'overdue', 'cancelled'
+    due_date DATE NOT NULL,
+    paid_at TIMESTAMPTZ,
+    payment_method TEXT,
+    reference_month TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
 ```

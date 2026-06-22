@@ -40,6 +40,7 @@ const AdminLayout = () => {
     ...(isManager ? [{ to: `/${tenant_slug}/staff/admin/estoque`, icon: 'shelves', label: 'Estoque' }] : []),
     ...(isManager ? [{ to: `/${tenant_slug}/staff/admin/configuracoes`, icon: 'settings_account_box', label: 'Operacional' }] : []),
     ...(isManager ? [{ to: `/${tenant_slug}/staff/admin/branding`, icon: 'palette', label: 'Branding' }] : []),
+    ...(isManager ? [{ to: `/${tenant_slug}/staff/admin/assinatura`, icon: 'workspace_premium', label: 'Assinatura' }] : []),
   ];
 
   return (

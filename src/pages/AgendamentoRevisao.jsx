@@ -33,10 +33,27 @@ const AgendamentoRevisao = () => {
     const endDateTime = new Date(startDateTime.getTime() + (bookingData.service.duration * 60000));
     
     try {
+      let assignedStaffId = bookingData.professional?.id;
+      
+      // Se for "Sem preferência", busca um profissional aleatório do salão para assumir o serviço
+      if (!assignedStaffId) {
+        const { data: staffData } = await supabase
+          .from('cap_staff')
+          .select('id')
+          .eq('tenant_id', tenant.id)
+          .limit(1);
+          
+        if (staffData && staffData.length > 0) {
+          assignedStaffId = staffData[0].id;
+        } else {
+          throw new Error("Nenhum profissional cadastrado encontrado para este serviço.");
+        }
+      }
+
       const { error } = await supabase.from('cap_appointments').insert([{
         tenant_id: tenant.id,
         client_id: session.id,
-        professional_id: bookingData.professional?.id || null,
+        staff_id: assignedStaffId,
         service_id: bookingData.service.id,
         start_time: startDateTime.toISOString(),
         end_time: endDateTime.toISOString(),
@@ -93,6 +110,11 @@ const AgendamentoRevisao = () => {
       if (data.expires_at && new Date(data.expires_at) < new Date()) {
          alert("Este cupom já expirou.");
          return;
+      }
+      
+      if (data.service_id && bookingData?.service?.id && data.service_id !== bookingData.service.id) {
+        alert("Este cupom não é válido para o serviço selecionado.");
+        return;
       }
       
       let calcDiscount = 0;

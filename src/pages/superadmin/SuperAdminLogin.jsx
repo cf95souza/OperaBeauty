@@ -60,9 +60,10 @@ const SuperAdminLogin = () => {
             <input 
               type="email" 
               className="w-full bg-surface-container-low border-none rounded-lg px-md py-3 font-body-md text-body-md focus:ring-2 focus:ring-primary outline-none transition-all"
-              placeholder="cf95.souza@gmail.com"
+              placeholder="admin@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              autoComplete="off"
               required
             />
           </div>

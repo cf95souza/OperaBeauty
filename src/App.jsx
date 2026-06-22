@@ -55,6 +55,43 @@ const TenantWrapper = () => {
   );
 };
 
+// --- Rota Protegida Super Admin ---
+const SuperAdminProtectedRoute = ({ children }) => {
+  const [loading, setLoading] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session?.user?.email === 'cf95.souza@gmail.com') {
+        setAuthorized(true);
+      } else {
+        setAuthorized(false);
+      }
+      setLoading(false);
+    };
+    checkAuth();
+  }, []);
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-surface text-on-surface font-body-md">Validando acesso...</div>;
+  if (!authorized) return <Navigate to="/superadmin/login" replace />;
+
+  return children || <Outlet />;
+};
+
+// --- Rota Protegida Staff ---
+const StaffProtectedRoute = ({ children }) => {
+  const { session, loading } = useTenant();
+  const { tenant_slug } = useParams();
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-surface text-on-surface font-body-md">Validando acesso...</div>;
+  if (!session || (session.role !== 'professional' && session.role !== 'manager' && session.role !== 'admin')) {
+    return <Navigate to={`/${tenant_slug}/staff/login`} replace />;
+  }
+
+  return children || <Outlet />;
+};
+
 // --- Rota Protegida Antiga (Será refatorada na Fase 23+) ---
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { session, loading } = useTenant();
@@ -77,8 +114,13 @@ import GestaoClientes from './pages/admin/GestaoClientes';
 import ConfiguracoesOperacionais from './pages/admin/ConfiguracoesOperacionais';
 import BrandingCustomizacao from './pages/admin/BrandingCustomizacao';
 import ControleEstoque from './pages/admin/ControleEstoque';
+import AssinaturaSaaS from './pages/admin/AssinaturaSaaS';
 import SuperAdmin from './pages/superadmin/SuperAdmin';
 import SuperAdminLogin from './pages/superadmin/SuperAdminLogin';
+import TenantDetailAdmin from './pages/superadmin/TenantDetailAdmin';
+import TenantListAdmin from './pages/superadmin/TenantListAdmin';
+import PlanosAdmin from './pages/superadmin/PlanosAdmin';
+import SettingsAdmin from './pages/superadmin/SettingsAdmin';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -97,8 +139,14 @@ function App() {
           <Route path="/" element={<LandingPage />} />
 
           {/* Rotas Super Admin (SaaS Mestre) */}
-          <Route path="/superadmin" element={<SuperAdmin />} />
           <Route path="/superadmin/login" element={<SuperAdminLogin />} />
+          <Route element={<SuperAdminProtectedRoute />}>
+            <Route path="/superadmin" element={<SuperAdmin />} />
+            <Route path="/superadmin/tenants" element={<TenantListAdmin />} />
+            <Route path="/superadmin/tenants/:id" element={<TenantDetailAdmin />} />
+            <Route path="/superadmin/planos" element={<PlanosAdmin />} />
+            <Route path="/superadmin/configuracoes" element={<SettingsAdmin />} />
+          </Route>
 
           {/* Rotas Multi-Tenant (Todas encapsuladas no slug do salão) */}
           <Route path="/:tenant_slug" element={<TenantWrapper />}>
@@ -120,7 +168,8 @@ function App() {
             <Route path="login" element={<AcessoTelefone />} />
             <Route path="acesso-senha" element={<AcessoSenha />} />
             <Route path="cadastro" element={<CadastroCliente />} />
-              <Route path="staff/login" element={<AcessoProfissional />} />
+            <Route path="staff/login" element={<AcessoProfissional />} />
+            <Route element={<StaffProtectedRoute />}>
               <Route path="staff/ficha-cliente/:id" element={<FichaClienteCRM />} />
               <Route element={<AdminLayout />}>
                 <Route path="staff/agendamento/:id" element={<ResumoAgendamento />} />
@@ -133,7 +182,9 @@ function App() {
                 <Route path="staff/admin/configuracoes" element={<ConfiguracoesOperacionais />} />
                 <Route path="staff/admin/branding" element={<BrandingCustomizacao />} />
                 <Route path="staff/admin/estoque" element={<ControleEstoque />} />
+                <Route path="staff/admin/assinatura" element={<AssinaturaSaaS />} />
               </Route>
+            </Route>
 
             {/* Antigas rotas (mantidas para compatibilidade provisória) */}
             <Route element={<ProtectedRoute />}>

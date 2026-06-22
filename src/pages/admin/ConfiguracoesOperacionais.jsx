@@ -29,8 +29,9 @@ const ConfiguracoesOperacionais = () => {
 
   // Coupon State
   const [coupons, setCoupons] = useState([]);
+  const [services, setServices] = useState([]);
   const [showCouponModal, setShowCouponModal] = useState(false);
-  const [newCoupon, setNewCoupon] = useState({ code: '', discount_type: 'percentage', discount_value: 10, max_uses: '', expires_at: '' });
+  const [newCoupon, setNewCoupon] = useState({ code: '', discount_type: 'percentage', discount_value: 10, max_uses: '', expires_at: '', service_id: '' });
 
   useEffect(() => {
     if (tenant?.id) {
@@ -74,11 +75,21 @@ const ConfiguracoesOperacionais = () => {
     // Fetch Coupons
     const { data: couponsData } = await supabase
       .from('cap_coupons')
-      .select('*')
+      .select('*, cap_services(name)')
       .eq('tenant_id', tenant.id)
       .order('created_at', { ascending: false });
       
     setCoupons(couponsData || []);
+
+    // Fetch Services for Coupon binding
+    const { data: servicesData } = await supabase
+      .from('cap_services')
+      .select('id, name')
+      .eq('tenant_id', tenant.id)
+      .eq('is_active', true)
+      .order('name');
+      
+    setServices(servicesData || []);
     
     setLoading(false);
   };
@@ -156,7 +167,8 @@ const ConfiguracoesOperacionais = () => {
       discount_type: newCoupon.discount_type,
       discount_value: parseFloat(newCoupon.discount_value),
       max_uses: newCoupon.max_uses ? parseInt(newCoupon.max_uses) : null,
-      expires_at: newCoupon.expires_at ? new Date(newCoupon.expires_at + 'T23:59:59').toISOString() : null
+      expires_at: newCoupon.expires_at ? new Date(newCoupon.expires_at + 'T23:59:59').toISOString() : null,
+      service_id: newCoupon.service_id || null
     };
 
     const { error } = await supabase.from('cap_coupons').insert([toInsert]);
@@ -165,7 +177,7 @@ const ConfiguracoesOperacionais = () => {
       alert('Erro ao adicionar cupom: ' + error.message);
     } else {
       setShowCouponModal(false);
-      setNewCoupon({ code: '', discount_type: 'percentage', discount_value: 10, max_uses: '', expires_at: '' });
+      setNewCoupon({ code: '', discount_type: 'percentage', discount_value: 10, max_uses: '', expires_at: '', service_id: '' });
       fetchData(); // refresh
     }
   };
@@ -290,10 +302,19 @@ const ConfiguracoesOperacionais = () => {
                 {coupons.map(coupon => (
                   <div key={coupon.id} className="flex justify-between items-center bg-surface p-sm rounded-lg border border-surface-variant">
                     <div>
-                      <p className="font-label-md text-label-md text-on-surface font-mono">{coupon.code}</p>
-                      <p className="font-body-sm text-[12px] text-secondary">
+                      <div className="flex items-center gap-2">
+                        <p className="font-label-md text-label-md text-on-surface font-mono">{coupon.code}</p>
+                        {coupon.service_id ? (
+                          <span className="bg-tertiary-container text-on-tertiary-container text-[10px] px-2 py-0.5 rounded-full font-semibold truncate max-w-[120px]">
+                            {coupon.cap_services?.name || 'Serviço Específico'}
+                          </span>
+                        ) : (
+                          <span className="bg-primary-container text-on-primary-container text-[10px] px-2 py-0.5 rounded-full font-semibold">Global</span>
+                        )}
+                      </div>
+                      <p className="font-body-sm text-[12px] text-secondary mt-1">
                         {coupon.discount_type === 'percentage' ? `${coupon.discount_value}%` : `R$ ${coupon.discount_value.toFixed(2)}`}
-                        {coupon.max_uses ? ` • ${coupon.current_uses}/${coupon.max_uses} usos` : ` • Usado ${coupon.current_uses}x`}
+                        {coupon.max_uses ? ` • ${coupon.current_uses || 0}/${coupon.max_uses} usos` : ` • Usado ${coupon.current_uses || 0}x`}
                         {coupon.expires_at && ` • Válido até ${format(parseISO(coupon.expires_at), 'dd/MM/yyyy')}`}
                       </p>
                     </div>
@@ -410,6 +431,19 @@ const ConfiguracoesOperacionais = () => {
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm focus:border-accent focus:ring-1 focus:ring-accent outline-none font-mono uppercase"
                   placeholder="EX: VERAO20"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">Válido Para</label>
+                <select
+                  value={newCoupon.service_id}
+                  onChange={(e) => setNewCoupon({...newCoupon, service_id: e.target.value})}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm focus:border-accent focus:ring-1 focus:ring-accent outline-none"
+                >
+                  <option value="">Todos os Serviços (Global)</option>
+                  {services.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex-1">

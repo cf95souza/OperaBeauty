@@ -74,5 +74,16 @@ Com a chegada de 27 novas telas exportadas do Figma/Stitch, iniciamos um refator
 - [x] Motor de Cupons de Desconto (Criação pelo Gestor e Aplicação e Validação real no fluxo de Checkout do Cliente).
 - [x] Módulo Avançado de Identidade e Branding (Edição do nome do salão e do link único/slug de acesso com recarregamento dinâmico).
 - [x] Melhorias no CRM (Ficha de Cliente e Gestão de Clientes) integrando contato rápido via WhatsApp.
-- [ ] Integração PIX Automático (AbacatePay) exclusivo para cobrança SaaS dos salões.
-- [ ] Integração de Notificações WhatsApp via IA.
+- [x] Integração Módulo de Faturas (Assinatura SaaS) e Baixa Manual.
+- [x] Proteção Reforçada de Rotas Administrativas (StaffProtectedRoute).
+
+## Fase 30: Novo Ambiente (Banco de Dados Homologação/Produção)
+- [ ] Criação de novo projeto/banco de dados no Supabase limpo para a versão oficial.
+- [ ] Rodar o script unificado do `estrutura_db.md` (V 1.0) no novo banco.
+- [ ] Configuração de Chaves (API Keys e URL) do novo ambiente no `.env`.
+- [ ] Executar bateria final de testes sistêmicos.
+
+## Fase 31: Landing Page (Página de Vendas do SaaS)
+- [ ] Implementação do layout de apresentação do produto (Pitch de vendas, benefícios).
+- [ ] Formulário de intenção de assinatura / Contato comercial.
+- [ ] Integração com botão de Login do Super Admin na área restrita.

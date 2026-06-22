@@ -51,7 +51,52 @@ const AgendamentoConfirmado = () => {
 
   const handleClose = () => {
     clearBooking();
-    navigate(`/${tenant_slug}/`);
+    navigate(`/${tenant_slug}/home`);
+  };
+
+  const handleAddToCalendar = () => {
+    if (!bookingData.date || !bookingData.time) return;
+
+    // Create dates assuming local time zone
+    const startDateTime = new Date(`${bookingData.date}T${bookingData.time}:00`);
+    const duration = bookingData.service?.duration || 60;
+    const endDateTime = new Date(startDateTime.getTime() + duration * 60000);
+
+    // Format date to ICS floating local time format (YYYYMMDDTHHMMSS)
+    // We avoid toISOString() because it converts to UTC, causing timezone offsets in Brazil.
+    const formatToLocalICSString = (date) => {
+      const pad = (n) => (n < 10 ? '0' + n : n);
+      return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+    };
+
+    const startICS = formatToLocalICSString(startDateTime);
+    const endICS = formatToLocalICSString(endDateTime);
+
+    const title = `${bookingData.service?.name || 'Serviço'} no ${tenant?.name || 'Salão'}`;
+    const description = `Agendamento de ${bookingData.service?.name || 'Serviço'} com ${bookingData.professional?.name || 'a equipe'}.`;
+    const location = `Unidade ${tenant?.name || 'Sede'}`;
+
+    const icsContent = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//OperaBeauty//Agendamento//PT',
+      'BEGIN:VEVENT',
+      `DTSTART:${startICS}`,
+      `DTEND:${endICS}`,
+      `SUMMARY:${title}`,
+      `DESCRIPTION:${description}`,
+      `LOCATION:${location}`,
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].join('\r\n');
+
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'agendamento.ics';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -157,7 +202,7 @@ const AgendamentoConfirmado = () => {
             >
               Meus Agendamentos
             </button>
-            <button className="w-full text-secondary font-semibold text-[14px] py-4 hover:bg-[#f3f3f4] rounded-xl transition-all">
+            <button onClick={handleAddToCalendar} className="w-full text-secondary font-semibold text-[14px] py-4 hover:bg-[#f3f3f4] rounded-xl transition-all">
               Adicionar ao Calendário
             </button>
           </div>

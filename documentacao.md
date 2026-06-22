@@ -80,7 +80,13 @@ Nesta última grande sprint, concluímos a fundação visual de **todos os 4 mó
 8. **Motor de Cupons e Branding Completo:** Sistema de descontos funcional com controle de expiração (data) e limites de quantidade de usos, integrado em tempo real no checkout da cliente. Branding customizável permitindo alterar nome e slug (link) do salão de forma dinâmica.
 9. **CRM Aprimorado:** Tela de clientes com rápido acesso para iniciar chamadas no WhatsApp, redefinição segura de senhas pelo gerente e proteção contra links quebrados no painel.
 
-### Próximos Passos (Integrações Finais):
-1. **Fluxo Financeiro de Comandas:** Gerenciar check-in e check-out da comanda (recebimentos no salão são sempre diretos/presenciais, sem gateway), integrando com a leitura já implementada no Dashboard Gerencial.
-2. **Gateway de Pagamento (SaaS):** Integração com AbacatePay exclusiva para o painel do Super Admin (e gerencial do dono do salão), com foco unicamente na cobrança da mensalidade do uso do sistema (SaaS).
-3. **Comunicação:** Disparos automáticos via WhatsApp (Notificações) para clientes finais.
+1. **Módulo de Faturas SaaS e Assinaturas:** Painel do Salão integrado à leitura real de suas mensalidades, e painel Mestre (Super Admin) com capacidade de gerar faturas manuais e dar baixa.
+2. **Proteção de Acessos Avançada:** Reforçamos o bfcache e roteamento do navegador garantindo que sessões encerradas expulsem usuários imediatamente de painéis de gerência.
+
+### O Sistema Está Pronto para Homologação (V 1.0)!
+Todo o core do SaaS Multi-Tenant está implementado. O sistema conta com agendamento autônomo do cliente, CRM atrelado a banco de dados isolado via RLS (Row Level Security) focado por salão, controles de gestão (estoque, serviços, finanças), além do super painel master da franquia.
+
+### Próximos Passos (Transição de Ambiente):
+1. **Novo Banco de Dados Oficial:** Levantaremos um novo projeto no Supabase, limpo, usando o script oficial documentado (`estrutura_db.md`).
+2. **Setup do `.env`:** O código passará a apontar para este novo ambiente de homologação final.
+3. **Landing Page de Vendas:** Criação do portal "vitrine" do OperaBeauty focado em captar novos donos de salão interessados na assinatura de R$ 59,90.
